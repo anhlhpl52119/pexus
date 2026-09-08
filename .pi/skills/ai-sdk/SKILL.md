@@ -8,7 +8,7 @@ description: 'Answer questions about the AI SDK and help build AI-powered featur
 The AI SDK by Vercel (the `ai` package on npm) is a TypeScript toolkit for building AI applications. It provides a unified API across model providers for text generation, structured output, tool calling, agents, embeddings, and framework UI integrations.
 
 - Repository: https://github.com/vercel/ai
-- Documentation: https://ai-sdk.dev/docs
+- Documents: `node_modules/ai/docs`
 
 ## Critical: Do Not Trust Your Own Memory
 

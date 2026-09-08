@@ -35,6 +35,7 @@ function isTerminalEvent(event: AgentEvent): boolean {
   return (
     event.type === EventType.WorkflowCompleted
     || event.type === EventType.WorkflowFailed
+    || event.type === EventType.WorkflowCancelled
   );
 }
 

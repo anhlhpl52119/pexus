@@ -7,6 +7,16 @@ import { isEmpty } from "es-toolkit/compat";
 import { onUnmounted, reactive, ref } from "vue";
 import { startAgentStream } from "../electroview";
 
+function findDynamicToolPart(
+  parts: UIMessage["parts"],
+  toolCallId: string,
+): DynamicToolUIPart | undefined {
+  return parts.find(
+    (part): part is DynamicToolUIPart =>
+      part.type === "dynamic-tool" && part.toolCallId === toolCallId,
+  );
+}
+
 export function useAIStream() {
   const conversation = ref<UIMessage[]>([]);
   const error = ref<string | null>(null);
@@ -96,11 +106,10 @@ export function useAIStream() {
         }
 
         if (event.type === EventType.ToolCompleted) {
-          const inputPart = resMessage.parts
-            .find(p => true
-              && p.type === "dynamic-tool"
-              && p.toolCallId === event.toolCallId,
-            ) as DynamicToolUIPart;
+          const inputPart = findDynamicToolPart(
+            resMessage.parts,
+            event.toolCallId,
+          );
 
           if (!inputPart) {
             return;
@@ -111,8 +120,19 @@ export function useAIStream() {
           return;
         }
 
-        if (event.type === EventType.WorkflowFailed) {
-          error.value = event.error;
+        if (event.type === EventType.ToolFailed) {
+          const inputPart = findDynamicToolPart(
+            resMessage.parts,
+            event.toolCallId,
+          );
+
+          if (!inputPart) {
+            return;
+          }
+
+          inputPart.state = "output-error";
+          inputPart.errorText = event.error;
+          return;
         }
 
         if (event.type === EventType.WorkflowFailed) {
@@ -122,6 +142,7 @@ export function useAIStream() {
         if (
           event.type === EventType.WorkflowCompleted
           || event.type === EventType.WorkflowFailed
+          || event.type === EventType.WorkflowCancelled
         ) {
           endedWhileSubscribing = true;
           if (activeStream === stream) {

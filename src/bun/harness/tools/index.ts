@@ -12,9 +12,8 @@ const KNOWLEDGE_BASE: Record<string, string> = {
 };
 
 /**
- * không pass property `execute` vào object `tools`
- * handle bằng một trigger riêng biệt thay vì để AI SDK tự động chạy tool
- * => để xử lý phần permission, loop,... sau này
+ * ToolLoopAgent owns the tool-call loop; toolsTrigger remains the execution
+ * boundary, while runtime callbacks provide event and observability hooks.
  */
 export const tools = {
   searchKnowledgeBase: tool({
@@ -22,6 +21,8 @@ export const tools = {
     inputSchema: z.object({
       query: z.string().describe("what to look up"),
     }),
+    execute: args =>
+      toolsTrigger("searchKnowledgeBase", args),
   }),
 
   classifyItem: tool({
@@ -30,6 +31,8 @@ export const tools = {
       itemId: z.string(),
       category: z.enum(["billing", "technical", "sales", "other"]),
     }),
+    execute: args =>
+      toolsTrigger("classifyItem", args),
   }),
 
   draftReply: tool({
@@ -38,25 +41,35 @@ export const tools = {
       itemId: z.string(),
       message: z.string(),
     }),
+    execute: args =>
+      toolsTrigger("draftReply", args),
   }),
 
   sendReply: tool({
-    description: "Send the drafted reply to the customer. This really emails them.",
+    description:
+      "Send the drafted reply to the customer. This really emails them.",
     inputSchema: z.object({
       itemId: z.string(),
       draftId: z.string(),
     }),
+    execute: args =>
+      toolsTrigger("sendReply", args),
   }),
 };
 
-export async function toolsTrigger(name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function toolsTrigger(
+  name: string,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   switch (name) {
     case "searchKnowledgeBase": {
       const query = String(args.query ?? "").toLowerCase();
       const hits = Object.entries(KNOWLEDGE_BASE)
         .filter(([key]) => query.includes(key))
         .map(([, article]) => article);
-      return { articles: hits.length ? hits : ["No exact match — use your judgment."] };
+      return {
+        articles: hits.length ? hits : ["No exact match — use your judgment."],
+      };
     }
     case "classifyItem":
       return { ok: true, itemId: args.itemId, category: args.category };

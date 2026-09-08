@@ -10,6 +10,10 @@ export interface MyWebviewRPCType {
         params: undefined;
         response: string | null;
       };
+      selectWorkspace: {
+        params: undefined;
+        response: string | null;
+      };
       getSettings: {
         params: undefined;
         response: UserSettings;
@@ -23,6 +27,7 @@ export interface MyWebviewRPCType {
           workflowId: string;
           prompt: string;
           modelId: string;
+          cwd: string | null;
         };
         response: {
           workflowId: string;
@@ -37,11 +42,21 @@ export interface MyWebviewRPCType {
           cancelled: boolean;
         };
       };
+      requestApproval: {
+        params: {
+          toolCallId: string;
+          approved: boolean;
+        };
+        response: {
+          approved: boolean;
+        };
+      };
     };
     messages: {
       logToBun: {
         msg: string;
       };
+      agentEvent: AgentEvent;
     };
   }>;
   // functions that execute in the browser context
@@ -53,6 +68,15 @@ export interface MyWebviewRPCType {
           b: number;
         };
         response: number;
+      };
+      requestApproval: {
+        params: {
+          toolCallId: string;
+          approved: boolean;
+        };
+        response: {
+          approved: boolean;
+        };
       };
     };
     messages: {

@@ -10,7 +10,7 @@ import {
   CLASSIFICATION_SCHEMA,
   SYSTEM_PROMPTS,
 } from "@/harness/prompts";
-import { tools } from "@/harness/tools";
+import { setCwd, setWorkflowId, tools } from "@/harness/tools";
 import { emit } from "@/runtime/bus";
 
 // --- Classification ---
@@ -86,6 +86,7 @@ interface RunWorkflowOptions {
     | "xhigh";
   /** Optional agent config to override instructions, tools, and modelId */
   config?: AgentConfig;
+  cwd?: string | null;
 }
 
 const MAX_AGENT_STEPS = 10;
@@ -104,7 +105,12 @@ export async function runWorkflow(
     abortSignal,
     reasoning,
     config,
+    cwd,
   } = options;
+
+  // Set workspace and workflow context for tools
+  setCwd(cwd ?? null);
+  setWorkflowId(workflowId);
 
   // Use agent config overrides when provided
   const instructions = config?.systemPrompt ?? SYSTEM_PROMPTS;

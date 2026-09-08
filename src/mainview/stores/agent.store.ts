@@ -2,7 +2,7 @@ import type { AgentEvent } from "@shared/event";
 import type { UIMessage } from "ai";
 import { last } from "es-toolkit/compat";
 import { defineStore } from "pinia";
-import { computed, reactive, ref } from "vue";
+import { reactive } from "vue";
 
 interface Workflow {
   id: string;

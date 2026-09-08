@@ -5,7 +5,7 @@ import { uuid } from "@shared/utils";
 import { last } from "es-toolkit/array";
 import { isEmpty } from "es-toolkit/compat";
 import { onUnmounted, reactive, ref } from "vue";
-import { startAgentStream } from "../electroview";
+import { requestApproval, startAgentStream } from "../electroview";
 
 function findDynamicToolPart(
   parts: UIMessage["parts"],
@@ -21,6 +21,8 @@ export function useAIStream() {
   const conversation = ref<UIMessage[]>([]);
   const error = ref<string | null>(null);
   const loading = ref(false);
+  const approvalDialogOpen = ref(false);
+  const pendingApproval = ref<{ toolCallId: string; command: string } | null>(null);
   let activeStream: AgentStream | undefined;
   let unsubscribe: (() => void) | undefined;
   let submissionId = 0;
@@ -47,7 +49,7 @@ export function useAIStream() {
     stream.dispose();
   }
 
-  async function submit(prompt: string, modelId: string) {
+  async function submit(prompt: string, modelId: string, cwd?: string | null) {
     if (isEmpty(prompt.trim())) {
       return;
     }
@@ -73,7 +75,7 @@ export function useAIStream() {
     });
 
     try {
-      const stream = await startAgentStream(prompt, modelId);
+      const stream = await startAgentStream(prompt, modelId, cwd);
       if (requestId !== submissionId) {
         await stream.cancel().catch(() => {});
         stream.dispose();
@@ -135,6 +137,21 @@ export function useAIStream() {
           return;
         }
 
+        if (event.type === EventType.ApprovalRequested) {
+          pendingApproval.value = {
+            toolCallId: event.toolCallId,
+            command: (event.args as Record<string, unknown>)?.command as string ?? "",
+          };
+          approvalDialogOpen.value = true;
+          return;
+        }
+
+        if (event.type === EventType.ApprovalResolved) {
+          approvalDialogOpen.value = false;
+          pendingApproval.value = null;
+          return;
+        }
+
         if (event.type === EventType.WorkflowFailed) {
           error.value = event.error;
         }
@@ -174,6 +191,14 @@ export function useAIStream() {
     loading.value = false;
   }
 
+  async function handleApproval(approved: boolean) {
+    if (pendingApproval.value) {
+      await requestApproval(pendingApproval.value.toolCallId, approved);
+    }
+    approvalDialogOpen.value = false;
+    pendingApproval.value = null;
+  }
+
   onUnmounted(() => {
     ++submissionId;
     void disposeActiveStream(true);
@@ -185,5 +210,8 @@ export function useAIStream() {
     loading,
     submit,
     cancel,
+    approvalDialogOpen,
+    pendingApproval,
+    handleApproval,
   };
 }

@@ -1,5 +1,6 @@
 import type { MyWebviewRPCType } from "@shared/rpc";
 import { BrowserView, Utils } from "electrobun";
+import { resolveApproval, setCwd } from "@/harness/tools";
 import { loadUserSettings, saveUserSettings } from "../config/user-settings";
 import { runWorkflow } from "./agent-runner";
 
@@ -25,9 +26,25 @@ export const rpc = BrowserView.defineRPC<MyWebviewRPCType>({
 
         return folder;
       },
+      selectWorkspace: async () => {
+        const paths = await Utils.openFileDialog({
+          canChooseFiles: false,
+          canChooseDirectory: true,
+          allowsMultipleSelection: false,
+        });
+
+        const folder = paths?.[0] ?? null;
+        setCwd(folder);
+
+        if (folder) {
+          console.warn("Selected workspace:", folder);
+        }
+
+        return folder;
+      },
       getSettings: () => loadUserSettings(),
       saveSettings: settings => saveUserSettings(settings),
-      startAgent: ({ workflowId, prompt, modelId }) => {
+      startAgent: ({ workflowId, prompt, modelId, cwd }) => {
         if (!workflowId.trim()) {
           throw new Error("Workflow ID cannot be empty.");
         }
@@ -44,12 +61,14 @@ export const rpc = BrowserView.defineRPC<MyWebviewRPCType>({
         const controller = new AbortController();
         activeAgents.set(workflowId, controller);
 
+        setCwd(cwd ?? null);
+
         runWorkflow({
           prompt: normalizedPrompt,
           workflowId,
           abortSignal: controller.signal,
           modelId,
-          // signal: controller.signal,
+          cwd,
         })
           .catch((error) => {
             console.error(`Agent ${workflowId} failed:`, error);
@@ -70,6 +89,10 @@ export const rpc = BrowserView.defineRPC<MyWebviewRPCType>({
 
         controller.abort(new Error("Agent run cancelled"));
         return { cancelled: true };
+      },
+      requestApproval: ({ toolCallId, approved }) => {
+        resolveApproval(toolCallId, approved);
+        return { approved };
       },
     },
     messages: {

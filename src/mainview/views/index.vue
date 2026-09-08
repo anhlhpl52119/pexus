@@ -37,7 +37,24 @@ import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-e
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/components/ai-elements/tool";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAIStream } from "@/composables/useAIStream";
+import { electroview } from "@/electroview";
 
 interface Model {
   id: string;
@@ -54,8 +71,7 @@ interface Model {
 }
 
 const webSearch = ref(false);
-const { conversation, loading, submit } = useAIStream();
-
+const { conversation, loading, submit, approvalDialogOpen, pendingApproval, handleApproval } = useAIStream();
 const status = computed<ChatStatus>(() =>
   loading.value ? "streaming" : "ready",
 );
@@ -78,8 +94,32 @@ const supportedModels = ref<Model[]>([]);
 const selectedModelData = computed(() => supportedModels.value.find(m => m.id === selectedModel.value));
 const chefs = computed(() => Array.from(new Set(supportedModels.value.map(model => model.chef))));
 
+const selectedWorkspace = ref<string | null>(null);
+const workspaceOptions = ref<Array<{ label: string; value: string | null }>>([
+  { label: "Without workspace (set null)", value: null },
+  { label: "~/Projects", value: "/Users/lamhunganh.vn/Projects" },
+  { label: "~/Development", value: "/Users/lamhunganh.vn/Development" },
+]);
+
 async function handleSubmit(message: PromptInputMessage) {
-  await submit(message.text, selectedModel.value);
+  await submit(message.text, selectedModel.value, selectedWorkspace.value);
+}
+
+async function openDirectory() {
+  try {
+    const rpc = electroview.rpc;
+    if (!rpc) {
+      console.error("ElectroBun RPC is unavailable.");
+      return;
+    }
+    const folder = await rpc.request.selectWd();
+    if (folder) {
+      selectedWorkspace.value = folder;
+    }
+  }
+  catch (error) {
+    console.error("Failed to open directory", error);
+  }
 }
 
 function handlePromptError(error: { code: string; message: string }) {
@@ -289,6 +329,29 @@ onMounted(async () => {
             <span>Search</span>
           </PromptInputButton>
 
+          <!-- Workspace Selector -->
+          <Select v-model="selectedWorkspace">
+            <SelectTrigger class="w-48">
+              <SelectValue placeholder="Select workspace" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Workspace</SelectLabel>
+                <SelectItem
+                  v-for="option in workspaceOptions"
+                  :key="String(option.value)"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </SelectItem>
+
+                <SelectItem key="open_directory" :value="null" @select="openDirectory">
+                  Open directory...
+                </SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+
           <ModelSelector v-model:open="open">
             <ModelSelectorTrigger>
               <Button class="w-50 justify-between" variant="outline">
@@ -341,5 +404,26 @@ onMounted(async () => {
         />
       </PromptInputFooter>
     </PromptInput>
+
+    <!-- Approval Dialog -->
+    <Dialog v-model:open="approvalDialogOpen">
+      <DialogContent>
+        <DialogTitle>Confirm Destructive Command</DialogTitle>
+        <DialogDescription>
+          This command appears to be destructive. Please confirm before proceeding.
+        </DialogDescription>
+        <div class="bg-muted rounded-md p-4 font-mono text-sm">
+          {{ pendingApproval?.command }}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="handleApproval(false)">
+            Deny
+          </Button>
+          <Button variant="default" @click="handleApproval(true)">
+            Approve
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

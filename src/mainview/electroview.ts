@@ -23,13 +23,23 @@ export const electroview = new Electroview({
     // Keep this aligned with the Bun handler for user-driven native dialogs.
     maxRequestTime: 120_000,
     handlers: {
-      requests: {},
       messages: {
         agentEvent: receiveAgentEvent,
       },
     },
   }),
 });
+
+export async function requestApproval(
+  toolCallId: string,
+  approved: boolean,
+): Promise<{ approved: boolean }> {
+  const rpc = electroview.rpc;
+  if (!rpc) {
+    throw new Error("ElectroBun RPC is unavailable.");
+  }
+  return rpc.request.requestApproval({ toolCallId, approved });
+}
 
 function isTerminalEvent(event: AgentEvent): boolean {
   return (
@@ -117,7 +127,11 @@ function receiveAgentEvent(event: AgentEvent): void {
   }
 }
 
-export async function startAgentStream(prompt: string, modelId: string): Promise<AgentStream> {
+export async function startAgentStream(
+  prompt: string,
+  modelId: string,
+  cwd: string | null = null,
+): Promise<AgentStream> {
   const rpc = electroview.rpc;
   if (!rpc) {
     throw new Error("ElectroBun RPC is unavailable.");
@@ -127,7 +141,12 @@ export async function startAgentStream(prompt: string, modelId: string): Promise
   const stream = createAgentStream(workflowId);
   streams.set(workflowId, stream);
   try {
-    const result = await rpc.request.startAgent({ workflowId, prompt, modelId });
+    const result = await rpc.request.startAgent({
+      workflowId,
+      prompt,
+      modelId,
+      cwd,
+    });
     if (!result.accepted) {
       throw new Error(`Agent workflow ${workflowId} was not accepted.`);
     }

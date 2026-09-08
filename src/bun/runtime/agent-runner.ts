@@ -1,12 +1,75 @@
 import type { ModelTurn } from "@shared/model";
 import type { GatewayModelId } from "ai";
 import { EventType } from "@shared/event";
-import { createGateway, isStepCount, ToolLoopAgent } from "ai";
+import { createGateway, isStepCount, Output, ToolLoopAgent } from "ai";
 import { randomUUIDv7 } from "bun";
 import { loadUserSettings } from "@/config/user-settings";
-import { SYSTEM_PROMPTS } from "@/harness/prompts";
+import {
+  AGENT_PROMPTS,
+  CLASSIFICATION_PROMPT,
+  CLASSIFICATION_SCHEMA,
+  SYSTEM_PROMPTS,
+} from "@/harness/prompts";
 import { tools } from "@/harness/tools";
 import { emit } from "@/runtime/bus";
+
+// --- Classification ---
+
+export type ClassificationTag = "coding" | "workflow" | "general";
+
+export interface AgentConfig {
+  tag: ClassificationTag;
+  systemPrompt: string;
+  tools?: typeof tools;
+  modelId?: GatewayModelId;
+  maxSteps?: number;
+}
+
+export const AGENT_REGISTRY: Record<ClassificationTag, AgentConfig> = {
+  coding: {
+    tag: "coding",
+    systemPrompt: AGENT_PROMPTS.coding,
+    tools,
+    maxSteps: 15,
+  },
+  workflow: {
+    tag: "workflow",
+    systemPrompt: AGENT_PROMPTS.workflow,
+    tools,
+    maxSteps: 15,
+  },
+  general: {
+    tag: "general",
+    systemPrompt: AGENT_PROMPTS.general,
+    tools,
+    maxSteps: 10,
+  },
+};
+
+export async function classifyMessage(prompt: string): Promise<ClassificationTag> {
+  const { vercelAiKey } = await loadUserSettings();
+  if (!vercelAiKey) {
+    throw new Error("Missing vercel API key in config");
+  }
+
+  const gateway = createGateway({ apiKey: vercelAiKey });
+
+  const classifier = new ToolLoopAgent({
+    model: gateway("openai/gpt-5.6-luna"),
+    instructions: CLASSIFICATION_PROMPT,
+    output: Output.object({
+      schema: CLASSIFICATION_SCHEMA,
+    }),
+  });
+
+  const { output } = await classifier.generate({
+    prompt,
+  });
+
+  return output.tag;
+}
+
+// --- Workflow Execution ---
 
 interface RunWorkflowOptions {
   prompt: string;
@@ -21,6 +84,8 @@ interface RunWorkflowOptions {
     | "medium"
     | "high"
     | "xhigh";
+  /** Optional agent config to override instructions, tools, and modelId */
+  config?: AgentConfig;
 }
 
 const MAX_AGENT_STEPS = 10;
@@ -38,7 +103,14 @@ export async function runWorkflow(
     prompt,
     abortSignal,
     reasoning,
+    config,
   } = options;
+
+  // Use agent config overrides when provided
+  const instructions = config?.systemPrompt ?? SYSTEM_PROMPTS;
+  const agentTools = config?.tools ?? tools;
+  const effectiveModelId = config?.modelId ?? modelId;
+  const maxSteps = config?.maxSteps ?? MAX_AGENT_STEPS;
   let maxStepLimitReached = false;
 
   try {
@@ -48,10 +120,10 @@ export async function runWorkflow(
     }
 
     const gateway = createGateway({ apiKey: vercelAiKey });
-    const maxStepStopCondition = isStepCount(MAX_AGENT_STEPS);
+    const maxStepStopCondition = isStepCount(maxSteps);
     const agent = new ToolLoopAgent({
-      model: gateway(modelId),
-      instructions: SYSTEM_PROMPTS,
+      model: gateway(effectiveModelId),
+      instructions,
       reasoning,
       stopWhen: async ({ steps }) => {
         const shouldStop = await maxStepStopCondition({ steps });
@@ -60,7 +132,7 @@ export async function runWorkflow(
         }
         return shouldStop;
       },
-      tools,
+      tools: agentTools,
       onToolExecutionStart: async ({ toolCall }) => {
         await emit({
           workflowId,
@@ -141,14 +213,31 @@ export async function runWorkflow(
   }
   catch (error) {
     if (abortSignal?.aborted) {
-      await emit({ type: EventType.WorkflowCancelled, workflowId, text: "aborted",
-      });
+      await emit({ type: EventType.WorkflowCancelled, workflowId, text: "aborted" });
     }
     else {
-      await emit({ type: EventType.WorkflowFailed, workflowId, error: errorMessage(error),
-      });
+      await emit({ type: EventType.WorkflowFailed, workflowId, error: errorMessage(error) });
     }
 
     throw error;
   }
+}
+
+// --- Router ---
+
+export async function runAgent(
+  prompt: string,
+  abortSignal?: AbortSignal,
+): Promise<ModelTurn> {
+  const tag = await classifyMessage(prompt);
+  const config = AGENT_REGISTRY[tag];
+
+  const workflowId = randomUUIDv7();
+
+  return runWorkflow({
+    prompt,
+    workflowId,
+    abortSignal,
+    config,
+  });
 }

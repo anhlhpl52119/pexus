@@ -130,7 +130,7 @@ function receiveAgentEvent(event: AgentEvent): void {
 export async function startAgentStream(
   prompt: string,
   modelId: string,
-  cwd: string | null = null,
+  cwd: string | null,
 ): Promise<AgentStream> {
   const rpc = electroview.rpc;
   if (!rpc) {

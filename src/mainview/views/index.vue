@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatStatus, SourceUrlUIPart, UIMessage } from "ai";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
-import { Check, CopyIcon, GlobeIcon, RefreshCcwIcon } from "@lucide/vue";
+import { Check, CopyIcon, FolderOpenIcon, LoaderCircleIcon, XIcon } from "@lucide/vue";
 import { multiply, round } from "es-toolkit/compat";
 import { computed, onMounted, ref } from "vue";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
@@ -21,12 +21,7 @@ import {
 } from "@/components/ai-elements/model-selector";
 import {
   PromptInput,
-  PromptInputActionAddAttachments,
-  PromptInputActionMenu,
-  PromptInputActionMenuContent,
-  PromptInputActionMenuTrigger,
   PromptInputBody,
-  PromptInputButton,
   PromptInputFooter,
   PromptInputSubmit,
   PromptInputTextarea,
@@ -44,15 +39,6 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAIStream } from "@/composables/useAIStream";
 import { electroview } from "@/electroview";
 
@@ -70,12 +56,11 @@ interface Model {
   };
 }
 
-const webSearch = ref(false);
-const { conversation, loading, submit, approvalDialogOpen, pendingApproval, handleApproval } = useAIStream();
+const { conversation, loading, error: streamError, submit, approvalDialogOpen, pendingApproval, handleApproval } = useAIStream();
 const status = computed<ChatStatus>(() =>
   loading.value ? "streaming" : "ready",
 );
-const messages = computed(() => [] as any);
+const messages = computed(() => conversation.value);
 const lastMessageId = computed(() => messages.value.at(-1)?.id ?? null);
 const lastAssistantMessageId = computed(() => {
   for (let index = messages.value.length - 1; index >= 0; index -= 1) {
@@ -95,31 +80,63 @@ const selectedModelData = computed(() => supportedModels.value.find(m => m.id ==
 const chefs = computed(() => Array.from(new Set(supportedModels.value.map(model => model.chef))));
 
 const selectedWorkspace = ref<string | null>(null);
-const workspaceOptions = ref<Array<{ label: string; value: string | null }>>([
-  { label: "Without workspace (set null)", value: null },
-  { label: "~/Projects", value: "/Users/lamhunganh.vn/Projects" },
-  { label: "~/Development", value: "/Users/lamhunganh.vn/Development" },
-]);
+const directoryPickerOpen = ref(false);
+const directoryPickerError = ref<string | null>(null);
+
+function normalizeDirectoryPath(path: string) {
+  const normalized = path.replace(/[\\/]+$/, "");
+  return normalized || path.slice(0, 1);
+}
+
+const selectedWorkspacePath = computed(() => {
+  if (!selectedWorkspace.value)
+    return null;
+
+  return normalizeDirectoryPath(selectedWorkspace.value);
+});
+
+const selectedWorkspaceName = computed(() => {
+  if (!selectedWorkspacePath.value)
+    return "";
+
+  const pathParts = selectedWorkspacePath.value.split(/[\\/]/).filter(Boolean);
+  return pathParts.at(-1) ?? selectedWorkspacePath.value;
+});
 
 async function handleSubmit(message: PromptInputMessage) {
   await submit(message.text, selectedModel.value, selectedWorkspace.value);
 }
 
 async function openDirectory() {
+  if (directoryPickerOpen.value)
+    return;
+
+  directoryPickerOpen.value = true;
+  directoryPickerError.value = null;
+
   try {
     const rpc = electroview.rpc;
-    if (!rpc) {
-      console.error("ElectroBun RPC is unavailable.");
-      return;
-    }
+    if (!rpc)
+      throw new Error("The directory picker is unavailable.");
+
     const folder = await rpc.request.selectWd();
-    if (folder) {
+    if (folder)
       selectedWorkspace.value = folder;
-    }
   }
   catch (error) {
     console.error("Failed to open directory", error);
+    directoryPickerError.value = error instanceof Error
+      ? error.message
+      : "Could not select a directory.";
   }
+  finally {
+    directoryPickerOpen.value = false;
+  }
+}
+
+function clearDirectory() {
+  selectedWorkspace.value = null;
+  directoryPickerError.value = null;
 }
 
 function handlePromptError(error: { code: string; message: string }) {
@@ -135,7 +152,7 @@ const hasPendingInput = computed(() => {
   return Boolean(promptInput.textInput.value.trim()) || promptInput.files.value.length > 0;
 });
 
-const submitDisabled = computed(() => !hasPendingInput.value && !status.value);
+const submitDisabled = computed(() => !hasPendingInput.value || status.value === "streaming");
 
 function getSourceUrlParts(message: UIMessage) {
   return message.parts.filter((part): part is SourceUrlUIPart => part.type === "source-url");
@@ -164,10 +181,6 @@ function isReasoningStreaming(message: UIMessage, partIndex: number) {
     && partIndex === message.parts.length - 1;
 }
 
-function toggleWebSearch() {
-  webSearch.value = !webSearch.value;
-}
-
 async function copyToClipboard(text: string) {
   if (!text)
     return;
@@ -188,7 +201,19 @@ function handleSelect(id: string) {
   open.value = false;
 }
 
-function handleRegenerate() {}
+const promptSuggestions = [
+  "Summarize the current project structure",
+  "Find the most important TODOs in this codebase",
+  "Explain how the main view works",
+];
+
+function usePromptSuggestion(suggestion: string) {
+  promptInput.textInput.value = suggestion;
+}
+
+const isAwaitingResponse = computed(() => {
+  return loading.value && conversation.value.at(-1)?.role === "user";
+});
 
 onMounted(async () => {
   try {
@@ -218,7 +243,8 @@ onMounted(async () => {
     if (hasDefaultModel) {
       return;
     }
-    selectedModel.value = textModels[0].id;
+    if (textModels.length > 0)
+      selectedModel.value = textModels[0].id;
   }
   catch (err) {
     console.error(err);
@@ -229,7 +255,35 @@ onMounted(async () => {
 <template>
   <div class="flex h-full flex-col">
     <Conversation class="h-full">
-      <ConversationContent>
+      <ConversationContent class="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+        <div
+          v-if="conversation.length === 0"
+          class="flex min-h-[min(28rem,60vh)] flex-col items-center justify-center text-center"
+        >
+          <div class="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <FolderOpenIcon class="size-6" />
+          </div>
+          <h1 class="text-xl font-semibold tracking-tight">
+            What are you building today?
+          </h1>
+          <p class="mt-2 max-w-md text-sm text-muted-foreground">
+            Ask the agent to inspect, explain, or change your project. Choose a working directory below when tools need local files.
+          </p>
+          <div class="mt-6 flex max-w-xl flex-wrap justify-center gap-2">
+            <Button
+              v-for="suggestion in promptSuggestions"
+              :key="suggestion"
+              class="h-auto whitespace-normal text-left"
+              variant="outline"
+              size="sm"
+              type="button"
+              @click="usePromptSuggestion(suggestion)"
+            >
+              {{ suggestion }}
+            </Button>
+          </div>
+        </div>
+
         <div
           v-for="message in conversation"
           :key="message.id"
@@ -263,12 +317,6 @@ onMounted(async () => {
 
                 <MessageActions v-if="shouldShowActions(message, partIndex)">
                   <MessageAction
-                    label="Retry"
-                    @click="handleRegenerate"
-                  >
-                    <RefreshCcwIcon class="size-3" />
-                  </MessageAction>
-                  <MessageAction
                     label="Copy"
                     @click="copyToClipboard(part.text)"
                   >
@@ -301,109 +349,140 @@ onMounted(async () => {
           </template>
         </div>
 
-        <Loader v-if="status === 'submitted'" class="mx-auto" />
+        <div
+          v-if="isAwaitingResponse"
+          class="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground"
+          aria-live="polite"
+        >
+          <Loader class="size-4" />
+          <span>Starting the agent…</span>
+        </div>
       </ConversationContent>
 
       <ConversationScrollButton />
     </Conversation>
 
-    <PromptInput class="mt-4" global-drop multiple>
-      <PromptInputBody>
-        <PromptInputTextarea />
-      </PromptInputBody>
+    <div class="sticky bottom-0 z-10 mx-auto w-full max-w-3xl shrink-0 border-t bg-background/95 px-4 pb-4 pt-2 backdrop-blur sm:px-6">
+      <p
+        v-if="streamError"
+        class="mb-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        role="alert"
+        aria-live="assertive"
+      >
+        {{ streamError }}
+      </p>
 
-      <PromptInputFooter>
-        <PromptInputTools>
-          <PromptInputActionMenu>
-            <PromptInputActionMenuTrigger />
-            <PromptInputActionMenuContent>
-              <PromptInputActionAddAttachments />
-            </PromptInputActionMenuContent>
-          </PromptInputActionMenu>
+      <PromptInput>
+        <PromptInputBody>
+          <PromptInputTextarea />
+        </PromptInputBody>
 
-          <PromptInputButton
-            :variant="webSearch ? 'default' : 'ghost'"
-            @click="toggleWebSearch"
-          >
-            <GlobeIcon class="size-4" />
-            <span>Search</span>
-          </PromptInputButton>
-
-          <!-- Workspace Selector -->
-          <Select v-model="selectedWorkspace">
-            <SelectTrigger class="w-48">
-              <SelectValue placeholder="Select workspace" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Workspace</SelectLabel>
-                <SelectItem
-                  v-for="option in workspaceOptions"
-                  :key="String(option.value)"
-                  :value="option.value"
+        <PromptInputFooter>
+          <PromptInputTools class="min-w-0 flex-1 flex-wrap">
+            <!-- Workspace Selector -->
+            <div class="flex min-w-0 max-w-48 flex-col">
+              <div class="flex min-w-0 items-center gap-1">
+                <Button
+                  class="h-8 max-w-48 min-w-0 flex-1 justify-start gap-2 rounded-full px-3 text-left"
+                  variant="outline"
+                  type="button"
+                  :disabled="directoryPickerOpen"
+                  :title="selectedWorkspacePath ?? 'Choose a working directory'"
+                  :aria-label="selectedWorkspacePath
+                    ? `Working directory: ${selectedWorkspacePath}`
+                    : 'Choose a working directory'"
+                  @click="openDirectory"
                 >
-                  {{ option.label }}
-                </SelectItem>
+                  <LoaderCircleIcon v-if="directoryPickerOpen" class="size-4 shrink-0 animate-spin" />
+                  <FolderOpenIcon v-else class="size-4 shrink-0" />
+                  <span class="min-w-0 truncate text-xs font-medium">
+                    {{ selectedWorkspaceName || "Choose folder" }}
+                  </span>
+                </Button>
 
-                <SelectItem key="open_directory" :value="null" @select="openDirectory">
-                  Open directory...
-                </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-
-          <ModelSelector v-model:open="open">
-            <ModelSelectorTrigger>
-              <Button class="w-50 justify-between" variant="outline">
-                <ModelSelectorLogo v-if="selectedModelData?.owner" :provider="selectedModelData.owner" />
-                <ModelSelectorName>{{ selectedModelData?.name }}</ModelSelectorName>
-              </Button>
-            </ModelSelectorTrigger>
-
-            <ModelSelectorContent>
-              <ModelSelectorInput placeholder="Search models..." />
-
-              <ModelSelectorList>
-                <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-
-                <ModelSelectorGroup
-                  v-for="chef in chefs"
-                  :key="chef"
-                  :heading="chef"
+                <Button
+                  v-if="selectedWorkspace"
+                  class="shrink-0"
+                  variant="ghost"
+                  size="icon-sm"
+                  type="button"
+                  aria-label="Clear working directory"
+                  title="Clear working directory"
+                  @click="clearDirectory"
                 >
-                  <ModelSelectorItem
-                    v-for="model in supportedModels.filter(m => m.chef === chef)"
-                    :key="model.id"
-                    :value="model.id"
-                    @select="handleSelect(model.id)"
+                  <XIcon class="size-4" />
+                </Button>
+              </div>
+              <p
+                v-if="directoryPickerError"
+                class="mt-1 max-w-64 truncate text-[10px] text-destructive"
+                aria-live="polite"
+                :title="directoryPickerError"
+              >
+                {{ directoryPickerError }}
+              </p>
+            </div>
+
+            <ModelSelector v-model:open="open">
+              <ModelSelectorTrigger>
+                <Button
+                  class="w-50 min-w-0 justify-between"
+                  variant="outline"
+                  type="button"
+                  :disabled="supportedModels.length === 0"
+                >
+                  <ModelSelectorLogo v-if="selectedModelData?.owner" :provider="selectedModelData.owner" />
+                  <ModelSelectorName class="min-w-0 truncate">
+                    {{ selectedModelData?.name ?? (supportedModels.length ? "Select model" : "Loading models…") }}
+                  </ModelSelectorName>
+                </Button>
+              </ModelSelectorTrigger>
+
+              <ModelSelectorContent>
+                <ModelSelectorInput placeholder="Search models..." />
+
+                <ModelSelectorList>
+                  <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+
+                  <ModelSelectorGroup
+                    v-for="chef in chefs"
+                    :key="chef"
+                    :heading="chef"
                   >
-                    <ModelSelectorLogo :provider="model.owner" />
-                    <ModelSelectorName>{{ model.name }}</ModelSelectorName>
-                    <!-- <ModelSelectorLogoGroup>
+                    <ModelSelectorItem
+                      v-for="model in supportedModels.filter(m => m.chef === chef)"
+                      :key="model.id"
+                      :value="model.id"
+                      @select="handleSelect(model.id)"
+                    >
+                      <ModelSelectorLogo :provider="model.owner" />
+                      <ModelSelectorName>{{ model.name }}</ModelSelectorName>
+                      <!-- <ModelSelectorLogoGroup>
                       <ModelSelectorLogo
                         v-for="provider in model.providers"
                         :key="provider"
                         :provider="provider"
                       />
                     </ModelSelectorLogoGroup> -->
-                    <div class="text-xs opacity-20">
-                      {{ model.pricing.input }}$ / {{ model.pricing.output }}$
-                    </div>
-                    <Check v-if="selectedModel === model.id" class="ml-auto size-4" />
-                    <div v-else class="ml-auto size-4" />
-                  </ModelSelectorItem>
-                </ModelSelectorGroup>
-              </ModelSelectorList>
-            </ModelSelectorContent>
-          </ModelSelector>
-        </PromptInputTools>
+                      <div class="text-xs opacity-20">
+                        {{ model.pricing.input }}$ / {{ model.pricing.output }}$
+                      </div>
+                      <Check v-if="selectedModel === model.id" class="ml-auto size-4" />
+                      <div v-else class="ml-auto size-4" />
+                    </ModelSelectorItem>
+                  </ModelSelectorGroup>
+                </ModelSelectorList>
+              </ModelSelectorContent>
+            </ModelSelector>
+          </PromptInputTools>
 
-        <PromptInputSubmit
-          :disabled="submitDisabled"
-          :status="status"
-        />
-      </PromptInputFooter>
-    </PromptInput>
+          <PromptInputSubmit
+            :disabled="submitDisabled"
+            :status="status"
+          />
+        </PromptInputFooter>
+      </PromptInput>
+    </div>
 
     <!-- Approval Dialog -->
     <Dialog v-model:open="approvalDialogOpen">

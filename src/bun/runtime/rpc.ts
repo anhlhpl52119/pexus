@@ -1,6 +1,6 @@
 import type { MyWebviewRPCType } from "@shared/rpc";
 import { BrowserView, Utils } from "electrobun";
-import { resolveApproval, setCwd } from "@/harness/tools";
+import { resolveApproval } from "@/harness/tools";
 import { loadUserSettings, saveUserSettings } from "../config/user-settings";
 import { runWorkflow } from "./agent-runner";
 
@@ -34,7 +34,6 @@ export const rpc = BrowserView.defineRPC<MyWebviewRPCType>({
         });
 
         const folder = paths?.[0] ?? null;
-        setCwd(folder);
 
         if (folder) {
           console.warn("Selected workspace:", folder);
@@ -60,8 +59,6 @@ export const rpc = BrowserView.defineRPC<MyWebviewRPCType>({
 
         const controller = new AbortController();
         activeAgents.set(workflowId, controller);
-
-        setCwd(cwd ?? null);
 
         runWorkflow({
           prompt: normalizedPrompt,

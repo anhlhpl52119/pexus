@@ -10,7 +10,7 @@ import {
   CLASSIFICATION_SCHEMA,
   SYSTEM_PROMPTS,
 } from "@/harness/prompts";
-import { setCwd, setWorkflowId, tools } from "@/harness/tools";
+import { createTools } from "@/harness/tools";
 import { emit } from "@/runtime/bus";
 
 // --- Classification ---
@@ -20,7 +20,6 @@ export type ClassificationTag = "coding" | "workflow" | "general";
 export interface AgentConfig {
   tag: ClassificationTag;
   systemPrompt: string;
-  tools?: typeof tools;
   modelId?: GatewayModelId;
   maxSteps?: number;
 }
@@ -29,19 +28,16 @@ export const AGENT_REGISTRY: Record<ClassificationTag, AgentConfig> = {
   coding: {
     tag: "coding",
     systemPrompt: AGENT_PROMPTS.coding,
-    tools,
     maxSteps: 15,
   },
   workflow: {
     tag: "workflow",
     systemPrompt: AGENT_PROMPTS.workflow,
-    tools,
     maxSteps: 15,
   },
   general: {
     tag: "general",
     systemPrompt: AGENT_PROMPTS.general,
-    tools,
     maxSteps: 10,
   },
 };
@@ -84,9 +80,9 @@ interface RunWorkflowOptions {
     | "medium"
     | "high"
     | "xhigh";
-  /** Optional agent config to override instructions, tools, and modelId */
+  /** Optional agent config to override instructions and modelId */
   config?: AgentConfig;
-  cwd?: string | null;
+  cwd: string | null;
 }
 
 const MAX_AGENT_STEPS = 10;
@@ -108,13 +104,16 @@ export async function runWorkflow(
     cwd,
   } = options;
 
-  // Set workspace and workflow context for tools
-  setCwd(cwd ?? null);
-  setWorkflowId(workflowId);
+  // Bind every tool instance to the client-provided workflow context. The model
+  // receives no CWD argument and cannot override this value.
+  const workflowTools = createTools({
+    workflowId,
+    cwd,
+  });
 
   // Use agent config overrides when provided
   const instructions = config?.systemPrompt ?? SYSTEM_PROMPTS;
-  const agentTools = config?.tools ?? tools;
+  const agentTools = workflowTools;
   const effectiveModelId = config?.modelId ?? modelId;
   const maxSteps = config?.maxSteps ?? MAX_AGENT_STEPS;
   let maxStepLimitReached = false;
@@ -233,6 +232,7 @@ export async function runWorkflow(
 
 export async function runAgent(
   prompt: string,
+  cwd: string | null,
   abortSignal?: AbortSignal,
 ): Promise<ModelTurn> {
   const tag = await classifyMessage(prompt);
@@ -245,5 +245,6 @@ export async function runAgent(
     workflowId,
     abortSignal,
     config,
+    cwd,
   });
 }

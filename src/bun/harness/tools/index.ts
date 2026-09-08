@@ -1,4 +1,5 @@
 import { exec } from "node:child_process";
+import { cwd as getProcessCwd } from "node:process";
 import { EventType } from "@shared/event";
 import { tool } from "ai";
 import { randomUUIDv7 } from "bun";
@@ -36,22 +37,12 @@ const BLACKLISTED_PREFIXES = [
  */
 function isBlacklisted(command: string): boolean {
   const firstToken = command.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
-  return BLACKLISTED_PREFIXES.some(
-    prefix => firstToken === prefix || command.trim().startsWith(prefix),
-  );
+  return BLACKLISTED_PREFIXES.includes(firstToken);
 }
 
-// --- State ---
-
-let currentCwd: string | null = null;
-let currentWorkflowId: string = "";
-
-export function setCwd(cwd: string | null) {
-  currentCwd = cwd;
-}
-
-export function setWorkflowId(id: string) {
-  currentWorkflowId = id;
+interface ToolContext {
+  workflowId: string;
+  cwd: string | null;
 }
 
 // --- Approval Mechanism ---
@@ -74,135 +65,68 @@ export function resolveApproval(
 
 // --- Tools ---
 
-export const tools = {
-  // searchKnowledgeBase: tool({
-  //   description:
-  //     "Search the support knowledge base for relevant articles.",
-  //   inputSchema: z.object({
-  //     query: z.string().describe("what to look up"),
-  //   }),
-  //   execute: args =>
-  //     toolsTrigger("searchKnowledgeBase", args),
-  // }),
-
-  // classifyItem: tool({
-  //   description:
-  //     "Classify a work item into a category.",
-  //   inputSchema: z.object({
-  //     itemId: z.string(),
-  //     category: z.enum(["billing", "technical", "sales", "other"]),
-  //   }),
-  //   execute: args =>
-  //     toolsTrigger("classifyItem", args),
-  // }),
-
-  // draftReply: tool({
-  //   description:
-  //     "Write a draft reply for a work item. Does not send anything.",
-  //   inputSchema: z.object({
-  //     itemId: z.string(),
-  //     message: z.string(),
-  //   }),
-  //   execute: args =>
-  //     toolsTrigger("draftReply", args),
-  // }),
-
-  // sendReply: tool({
-  //   description:
-  //     "Send the drafted reply to the customer. This really emails them.",
-  //   inputSchema: z.object({
-  //     itemId: z.string(),
-  //     draftId: z.string(),
-  //   }),
-  //   execute: args =>
-  //     toolsTrigger("sendReply", args),
-  // }),
-
-  bashExecution: tool({
-    description:
-      "Execute a bash command within the specified workspace directory. Use with caution.",
-    inputSchema: z.object({
-      command: z
-        .string()
-        .describe("The bash command to execute"),
-      cwd: z
-        .string()
-        .nullable()
-        .optional()
-        .describe(
-          "The working directory for the command. Uses the current workspace if not provided.",
-        ),
-    }),
-    execute: async args =>
-      toolsTrigger("bashExecution", args),
-  }),
-};
-
-export async function toolsTrigger(
-  name: string,
-  args: Record<string, unknown>,
+async function executeBash(
+  command: string,
+  context: { workflowId: string; cwd: string },
 ): Promise<Record<string, unknown>> {
-  switch (name) {
-    // case "searchKnowledgeBase": {
-    //   const query = String(args.query ?? "").toLowerCase();
-    //   const hits = Object.entries(KNOWLEDGE_BASE)
-    //     .filter(([key]) => query.includes(key))
-    //     .map(([, article]) => article);
-    //   return {
-    //     articles: hits.length ? hits : ["No exact match — use your judgment."],
-    //   };
-    // }
-    // case "classifyItem":
-    //   return { ok: true, itemId: args.itemId, category: args.category };
-    // case "draftReply":
-    //   return { ok: true, draftId: `draft-${args.itemId}` };
-    // case "sendReply":
-    //   return { sent: true, itemId: args.itemId, draftId: args.draftId };
-    case "bashExecution": {
-      const command = String(args.command ?? "");
-      const cwd = (args.cwd as string | null) ?? currentCwd;
-      const workflowId = currentWorkflowId;
+  if (isBlacklisted(command)) {
+    const toolCallId = randomUUIDv7();
 
-      // Check blacklist
-      if (isBlacklisted(command)) {
-        const toolCallId = randomUUIDv7();
+    await emit({
+      workflowId: context.workflowId,
+      type: EventType.ApprovalRequested,
+      toolCallId,
+      action: command,
+      args: { command, cwd: context.cwd },
+    });
 
-        await emit({
-          workflowId,
-          type: EventType.ApprovalRequested,
-          toolCallId,
-          action: command,
-          args: { command, cwd },
-        });
+    const approved = await new Promise<boolean>((resolve) => {
+      pendingApprovals.set(toolCallId, resolve);
+    });
 
-        // Wait for user approval
-        const approved = await new Promise<boolean>((resolve) => {
-          pendingApprovals.set(toolCallId, resolve);
-        });
-
-        if (!approved) {
-          return {
-            success: false,
-            error: "Command denied by user — blacklisted command requires approval",
-          };
-        }
-      }
-
-      // Execute the command
-      return new Promise((resolve) => {
-        exec(command, { cwd: cwd ?? undefined }, (error, stdout, stderr) => {
-          const exitCode = (error as { status?: number })?.status ?? 0;
-          resolve({
-            success: !error,
-            stdout: stdout ?? "",
-            stderr: stderr ?? "",
-            code: exitCode,
-            message: error instanceof Error ? error.message : "",
-          });
-        });
-      });
+    if (!approved) {
+      return {
+        success: false,
+        error: "Command denied by user — blacklisted command requires approval",
+      };
     }
-    default:
-      throw new Error(`unknown tool: ${name}`);
   }
+
+  return new Promise((resolve) => {
+    exec(command, { cwd: context.cwd }, (error, stdout, stderr) => {
+      const errorCode = error && (error as NodeJS.ErrnoException).code;
+      const exitCode = typeof errorCode === "number" ? errorCode : error ? 1 : 0;
+
+      resolve({
+        success: !error,
+        stdout: stdout ?? "",
+        stderr: stderr ?? "",
+        code: exitCode,
+        message: error instanceof Error ? error.message : "",
+      });
+    });
+  });
+}
+
+export function createTools(context: ToolContext) {
+  const executionCwd = context.cwd ?? getProcessCwd();
+
+  return {
+    bashExecution: tool({
+      description:
+        "Execute a bash command in the client-selected workspace. The working directory is controlled by the client.",
+      inputSchema: z.object({
+        command: z
+          .string()
+          .trim()
+          .min(1)
+          .describe("The bash command to execute"),
+      }),
+      execute: ({ command }) =>
+        executeBash(command, {
+          workflowId: context.workflowId,
+          cwd: executionCwd,
+        }),
+    }),
+  };
 }

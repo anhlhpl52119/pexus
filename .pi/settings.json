@@ -1,0 +1,4 @@
+{
+  "defaultProvider": "vercel-ai-gateway",
+  "defaultModel": "inclusionai/ling-3.0-flash-fin-free"
+}

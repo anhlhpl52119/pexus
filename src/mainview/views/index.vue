@@ -71,7 +71,7 @@ const lastAssistantMessageId = computed(() => {
 });
 
 const open = ref(false);
-const selectedModel = ref<string>("minimax/minimax-m3-free");
+const selectedModel = ref<string>("inclusionai/ling-3.0-flash-fin-free");
 
 const supportedModels = ref<Model[]>([]);
 

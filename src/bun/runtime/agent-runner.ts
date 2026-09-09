@@ -103,12 +103,16 @@ export async function runWorkflow(
     config,
     cwd,
   } = options;
+  let toolRejected = false;
 
   // Bind every tool instance to the client-provided workflow context. The model
   // receives no CWD argument and cannot override this value.
   const workflowTools = createTools({
     workflowId,
     cwd,
+    onToolRejected: () => {
+      toolRejected = true;
+    },
   });
 
   // Use agent config overrides when provided
@@ -130,7 +134,13 @@ export async function runWorkflow(
       model: gateway(effectiveModelId),
       instructions,
       reasoning,
+      // A denied tool result must not be followed by another model turn. The
+      // SDK evaluates stopWhen after the current tool step completes.
       stopWhen: async ({ steps }) => {
+        if (toolRejected) {
+          return true;
+        }
+
         const shouldStop = await maxStepStopCondition({ steps });
         if (!maxStepLimitReached) {
           maxStepLimitReached = shouldStop;

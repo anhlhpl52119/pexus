@@ -43,6 +43,7 @@ function isBlacklisted(command: string): boolean {
 interface ToolContext {
   workflowId: string;
   cwd: string | null;
+  onToolRejected?: () => void;
 }
 
 // --- Approval Mechanism ---
@@ -67,7 +68,11 @@ export function resolveApproval(
 
 async function executeBash(
   command: string,
-  context: { workflowId: string; cwd: string },
+  context: {
+    workflowId: string;
+    cwd: string;
+    onToolRejected?: () => void;
+  },
 ): Promise<Record<string, unknown>> {
   if (isBlacklisted(command)) {
     const toolCallId = randomUUIDv7();
@@ -85,8 +90,10 @@ async function executeBash(
     });
 
     if (!approved) {
+      context.onToolRejected?.();
       return {
         success: false,
+        rejected: true,
         error: "Command denied by user — blacklisted command requires approval",
       };
     }
@@ -126,6 +133,7 @@ export function createTools(context: ToolContext) {
         executeBash(command, {
           workflowId: context.workflowId,
           cwd: executionCwd,
+          onToolRejected: context.onToolRejected,
         }),
     }),
   };

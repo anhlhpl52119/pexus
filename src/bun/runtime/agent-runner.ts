@@ -51,7 +51,7 @@ export async function classifyMessage(prompt: string): Promise<ClassificationTag
   const gateway = createGateway({ apiKey: vercelAiKey });
 
   const classifier = new ToolLoopAgent({
-    model: gateway("openai/gpt-5.6-luna"),
+    model: gateway("inception/mercury-2.5"),
     instructions: CLASSIFICATION_PROMPT,
     output: Output.object({
       schema: CLASSIFICATION_SCHEMA,

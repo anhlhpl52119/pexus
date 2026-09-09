@@ -91,7 +91,7 @@ export function useAIStream() {
     stream.dispose();
   }
 
-  async function submit(prompt: string, modelId: string, cwd?: string | null) {
+  async function submit(prompt: string, modelId: string, cwd: string | null) {
     const normalizedPrompt = prompt.trim();
     if (!normalizedPrompt) {
       return;

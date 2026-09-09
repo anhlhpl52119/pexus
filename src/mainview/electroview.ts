@@ -1,5 +1,6 @@
 import type { AgentEvent } from "@shared/event";
 import type { MyWebviewRPCType } from "@shared/rpc";
+import type { UIMessage } from "ai";
 import { EventType } from "@shared/event";
 import { Electroview } from "electrobun/view";
 
@@ -29,6 +30,16 @@ export const electroview = new Electroview({
     },
   }),
 });
+
+export async function loadChat(
+  chatId: string,
+): Promise<{ id: string; messages: UIMessage[] }> {
+  const rpc = electroview.rpc;
+  if (!rpc) {
+    throw new Error("ElectroBun RPC is unavailable.");
+  }
+  return rpc.request.loadChat({ chatId });
+}
 
 export async function requestApproval(
   toolCallId: string,
@@ -128,7 +139,8 @@ function receiveAgentEvent(event: AgentEvent): void {
 }
 
 export async function startAgentStream(
-  prompt: string,
+  chatId: string,
+  message: UIMessage,
   modelId: string,
   cwd: string | null,
 ): Promise<AgentStream> {
@@ -142,8 +154,9 @@ export async function startAgentStream(
   streams.set(workflowId, stream);
   try {
     const result = await rpc.request.startAgent({
+      chatId,
       workflowId,
-      prompt,
+      message,
       modelId,
       cwd,
     });

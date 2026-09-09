@@ -1,5 +1,6 @@
 import type { AgentEvent } from "@shared/event";
 import type { UserSettings } from "@shared/settings";
+import type { UIMessage } from "ai";
 import type { RPCSchema } from "electrobun";
 
 export interface MyWebviewRPCType {
@@ -22,10 +23,19 @@ export interface MyWebviewRPCType {
         params: UserSettings;
         response: UserSettings;
       };
+      createChat: {
+        params: { chatId: string };
+        response: { id: string; messages: UIMessage[] };
+      };
+      loadChat: {
+        params: { chatId: string };
+        response: { id: string; messages: UIMessage[] };
+      };
       startAgent: {
         params: {
+          chatId: string;
           workflowId: string;
-          prompt: string;
+          message: UIMessage;
           modelId: string;
           cwd: string | null;
         };

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { ChatStatus, SourceUrlUIPart, UIMessage } from "ai";
+import type { ChatStatus, SourceUrlUIPart, ToolUIPart, UIMessage } from "ai";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { Check, CopyIcon, FolderOpenIcon, LoaderCircleIcon, XIcon } from "@lucide/vue";
+import { getToolName, isStaticToolUIPart } from "ai";
 import { multiply, round } from "es-toolkit/compat";
 import { computed, onMounted, ref } from "vue";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
@@ -56,7 +57,7 @@ interface Model {
   };
 }
 
-const { conversation, loading, error: streamError, submit, approvalDialogOpen, pendingApproval, handleApproval } = useAIStream();
+const { conversation, loading, error: streamError, submit, initialize, approvalDialogOpen, pendingApproval, handleApproval } = useAIStream();
 const status = computed<ChatStatus>(() =>
   loading.value ? "streaming" : "ready",
 );
@@ -158,6 +159,10 @@ function getSourceUrlParts(message: UIMessage) {
   return message.parts.filter((part): part is SourceUrlUIPart => part.type === "source-url");
 }
 
+function isStaticToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
+  return isStaticToolUIPart(part);
+}
+
 function shouldShowActions(message: UIMessage, partIndex: number) {
   if (message.role !== "assistant")
     return false;
@@ -217,6 +222,7 @@ const isAwaitingResponse = computed(() => {
 
 onMounted(async () => {
   try {
+    await initialize();
     const { data: models } = await fetch("https://ai-gateway.vercel.sh/v1/models")
       .then(res => res.json());
 
@@ -335,11 +341,24 @@ onMounted(async () => {
               <ReasoningContent :content="part.text" />
             </Reasoning>
 
-            <Tool v-if="part.type === 'dynamic-tool'">
+            <Tool v-else-if="part.type === 'dynamic-tool'">
               <ToolHeader
-                :state="part.state || 'input-streaming'"
+                :state="part.state"
                 :title="part.toolName"
-                type="tool-database_query"
+                type="dynamic-tool"
+                :tool-name="part.toolName"
+              />
+              <ToolContent>
+                <ToolInput :input="part.input" />
+                <ToolOutput v-if="part.state === 'output-available'" :error-text="part.errorText" :output="part.output" />
+              </ToolContent>
+            </Tool>
+
+            <Tool v-else-if="isStaticToolPart(part)">
+              <ToolHeader
+                :state="part.state"
+                :title="getToolName(part)"
+                :type="part.type"
               />
               <ToolContent>
                 <ToolInput :input="part.input" />

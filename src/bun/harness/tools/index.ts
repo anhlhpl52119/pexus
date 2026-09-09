@@ -43,6 +43,7 @@ function isBlacklisted(command: string): boolean {
 interface ToolContext {
   workflowId: string;
   cwd: string | null;
+  abortSignal?: AbortSignal;
   onToolRejected?: () => void;
 }
 
@@ -71,6 +72,7 @@ async function executeBash(
   context: {
     workflowId: string;
     cwd: string;
+    abortSignal?: AbortSignal;
     onToolRejected?: () => void;
   },
 ): Promise<Record<string, unknown>> {
@@ -86,7 +88,23 @@ async function executeBash(
     });
 
     const approved = await new Promise<boolean>((resolve) => {
-      pendingApprovals.set(toolCallId, resolve);
+      const onAbort = () => {
+        pendingApprovals.delete(toolCallId);
+        resolve(false);
+      };
+      const settle = (value: boolean) => {
+        context.abortSignal?.removeEventListener("abort", onAbort);
+        pendingApprovals.delete(toolCallId);
+        resolve(value);
+      };
+
+      pendingApprovals.set(toolCallId, settle);
+      if (context.abortSignal?.aborted) {
+        onAbort();
+      }
+      else {
+        context.abortSignal?.addEventListener("abort", onAbort, { once: true });
+      }
     });
 
     if (!approved) {
@@ -100,7 +118,7 @@ async function executeBash(
   }
 
   return new Promise((resolve) => {
-    exec(command, { cwd: context.cwd }, (error, stdout, stderr) => {
+    exec(command, { cwd: context.cwd, signal: context.abortSignal }, (error, stdout, stderr) => {
       const errorCode = error && (error as NodeJS.ErrnoException).code;
       const exitCode = typeof errorCode === "number" ? errorCode : error ? 1 : 0;
 
@@ -133,6 +151,7 @@ export function createTools(context: ToolContext) {
         executeBash(command, {
           workflowId: context.workflowId,
           cwd: executionCwd,
+          abortSignal: context.abortSignal,
           onToolRejected: context.onToolRejected,
         }),
     }),

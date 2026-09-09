@@ -1,37 +1,79 @@
-import type { DynamicToolUIPart, TextUIPart, UIMessage } from "ai";
+import type { UIMessage, UIMessageChunk } from "ai";
 import type { AgentStream } from "../electroview";
 import { EventType } from "@shared/event";
 import { uuid } from "@shared/utils";
-import { last } from "es-toolkit/array";
-import { isEmpty } from "es-toolkit/compat";
-import { onUnmounted, reactive, ref } from "vue";
-import { requestApproval, startAgentStream } from "../electroview";
+import { readUIMessageStream } from "ai";
+import { onUnmounted, ref } from "vue";
+import { loadChat, requestApproval, startAgentStream } from "../electroview";
 
-function findDynamicToolPart(
-  parts: UIMessage["parts"],
-  toolCallId: string,
-): DynamicToolUIPart | undefined {
-  return parts.find(
-    (part): part is DynamicToolUIPart =>
-      part.type === "dynamic-tool" && part.toolCallId === toolCallId,
-  );
+const ACTIVE_CHAT_ID_KEY = "pexus.active-chat-id";
+
+function getActiveChatId(): string {
+  try {
+    const storedChatId = localStorage.getItem(ACTIVE_CHAT_ID_KEY);
+    if (storedChatId && /^[\w-]{1,128}$/.test(storedChatId)) {
+      return storedChatId;
+    }
+  }
+  catch {
+    // Fall back to an in-memory ID when WebView storage is unavailable.
+  }
+
+  const chatId = uuid();
+  try {
+    localStorage.setItem(ACTIVE_CHAT_ID_KEY, chatId);
+  }
+  catch {
+    // Persistence is provided by Bun; this only keeps the selected chat stable.
+  }
+  return chatId;
 }
 
 export function useAIStream() {
+  const chatId = getActiveChatId();
   const conversation = ref<UIMessage[]>([]);
   const error = ref<string | null>(null);
   const loading = ref(false);
   const approvalDialogOpen = ref(false);
   const pendingApproval = ref<{ toolCallId: string; command: string } | null>(null);
   let activeStream: AgentStream | undefined;
+  let activeChunkController: ReadableStreamDefaultController<UIMessageChunk> | undefined;
   let unsubscribe: (() => void) | undefined;
   let submissionId = 0;
+
+  function closeChunkStream(): void {
+    const controller = activeChunkController;
+    activeChunkController = undefined;
+    try {
+      controller?.close();
+    }
+    catch {
+      // The reader may have already closed or errored the stream.
+    }
+  }
+
+  let initializationPromise: Promise<void> | undefined;
+
+  async function initialize(): Promise<void> {
+    if (!initializationPromise) {
+      initializationPromise = loadChat(chatId)
+        .then((chat) => {
+          conversation.value = chat.messages;
+        })
+        .catch((cause) => {
+          error.value = cause instanceof Error ? cause.message : String(cause);
+          throw cause;
+        });
+    }
+    await initializationPromise;
+  }
 
   async function disposeActiveStream(cancel = false): Promise<void> {
     const stream = activeStream;
     activeStream = undefined;
     unsubscribe?.();
     unsubscribe = undefined;
+    closeChunkStream();
 
     if (!stream) {
       return;
@@ -50,17 +92,22 @@ export function useAIStream() {
   }
 
   async function submit(prompt: string, modelId: string, cwd?: string | null) {
-    if (isEmpty(prompt.trim())) {
+    const normalizedPrompt = prompt.trim();
+    if (!normalizedPrompt) {
       return;
     }
+
+    await initialize();
     const requestId = ++submissionId;
     loading.value = true;
     error.value = null;
-    conversation.value.push({
+
+    const userMessage: UIMessage = {
       role: "user",
       id: uuid(),
-      parts: [{ type: "text", text: prompt }],
-    });
+      parts: [{ type: "text", text: normalizedPrompt }],
+    };
+    conversation.value.push(userMessage);
 
     await disposeActiveStream(true);
 
@@ -68,72 +115,63 @@ export function useAIStream() {
       return;
     }
 
-    const resMessage = reactive<UIMessage>({
-      role: "assistant",
-      id: uuid(),
-      parts: [{ type: "text", text: "" }] as TextUIPart[],
-    });
-
     try {
-      const stream = await startAgentStream(prompt, modelId, cwd);
+      const stream = await startAgentStream(chatId, userMessage, modelId, cwd ?? null);
       if (requestId !== submissionId) {
         await stream.cancel().catch(() => {});
         stream.dispose();
         return;
       }
-      conversation.value.push(resMessage);
+
       activeStream = stream;
+      const chunkStream = new ReadableStream<UIMessageChunk>({
+        start(controller) {
+          activeChunkController = controller;
+        },
+      });
+      const responseStream = readUIMessageStream<UIMessage>({
+        stream: chunkStream,
+        terminateOnError: true,
+        onError: (cause) => {
+          error.value = cause instanceof Error ? cause.message : String(cause);
+        },
+      });
+
+      const responseDone = (async () => {
+        const reader = responseStream.getReader();
+        try {
+          while (true) {
+            const result = await reader.read();
+            if (result.done) {
+              break;
+            }
+
+            const responseMessage = result.value;
+            const messageIndex = conversation.value.findIndex(
+              message => message.id === responseMessage.id,
+            );
+            if (messageIndex === -1) {
+              conversation.value.push(responseMessage);
+            }
+            else {
+              conversation.value[messageIndex] = responseMessage;
+            }
+          }
+        }
+        finally {
+          reader.releaseLock();
+        }
+      })();
+
       let endedWhileSubscribing = false;
       const streamUnsubscribe = stream.subscribe((event) => {
-        if (event.type === EventType.ModelDelta) {
-          const latestPart = last(resMessage.parts);
-          if (latestPart?.type === "text") {
-            latestPart.text += event.text;
+        if (event.type === EventType.AgentUIChunk) {
+          try {
+            activeChunkController?.enqueue(event.chunk);
           }
-          else {
-            resMessage.parts.push({ type: "text", text: event.text });
+          catch (cause) {
+            console.error("Could not process agent stream chunk:", cause);
           }
-          return;
-        }
-
-        if (event.type === EventType.ToolRequested) {
-          resMessage.parts.push({
-            type: "dynamic-tool",
-            state: "input-streaming",
-            toolCallId: event.toolCallId,
-            toolName: event.name,
-            input: event.args,
-          });
-          return;
-        }
-
-        if (event.type === EventType.ToolCompleted) {
-          const inputPart = findDynamicToolPart(
-            resMessage.parts,
-            event.toolCallId,
-          );
-
-          if (!inputPart) {
-            return;
-          }
-
-          inputPart.state = "output-available";
-          inputPart.output = event.result;
-          return;
-        }
-
-        if (event.type === EventType.ToolFailed) {
-          const inputPart = findDynamicToolPart(
-            resMessage.parts,
-            event.toolCallId,
-          );
-
-          if (!inputPart) {
-            return;
-          }
-
-          inputPart.state = "output-error";
-          inputPart.errorText = event.error;
           return;
         }
 
@@ -162,6 +200,7 @@ export function useAIStream() {
           || event.type === EventType.WorkflowCancelled
         ) {
           endedWhileSubscribing = true;
+          closeChunkStream();
           if (activeStream === stream) {
             activeStream = undefined;
           }
@@ -176,9 +215,12 @@ export function useAIStream() {
       else {
         unsubscribe = streamUnsubscribe;
       }
+
+      await responseDone;
     }
     catch (cause) {
       if (requestId === submissionId) {
+        await disposeActiveStream(true);
         error.value = cause instanceof Error ? cause.message : String(cause);
         loading.value = false;
       }
@@ -205,7 +247,9 @@ export function useAIStream() {
   });
 
   return {
+    chatId,
     conversation,
+    initialize,
     error,
     loading,
     submit,

@@ -1,3 +1,5 @@
+import type { UIMessageChunk } from "ai";
+
 export const EventType = {
   // a workflow (one agent run) begins / ends
   WorkflowStarted: "workflow.started",
@@ -7,6 +9,7 @@ export const EventType = {
   // the model thinking out loud (streamed token by token)
   ModelDelta: "model.delta",
   ModelCompleted: "model.completed",
+  AgentUIChunk: "agent.ui-chunk",
   // the model reasoning
   ReasoningDelta: "reasoning.delta",
   ModelReasoningCompleted: "reasoning.completed",
@@ -37,6 +40,7 @@ export type EventInput
     | { type: typeof EventType.WorkflowCancelled; workflowId: string; text: string }
     | { type: typeof EventType.ModelDelta; workflowId: string; text: string }
     | { type: typeof EventType.ModelCompleted; workflowId: string; text: string }
+    | { type: typeof EventType.AgentUIChunk; workflowId: string; chatId: string; sequence: number; chunk: UIMessageChunk }
     | { type: typeof EventType.ReasoningDelta; workflowId: string; text: string }
     | { type: typeof EventType.ModelReasoningCompleted; workflowId: string; text: string }
     | { type: typeof EventType.ToolRequested; workflowId: string; toolCallId: string; name: string; args: unknown }

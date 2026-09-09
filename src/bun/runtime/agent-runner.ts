@@ -1,7 +1,7 @@
 import type { ModelTurn } from "@shared/model";
-import type { GatewayModelId } from "ai";
+import type { GatewayModelId, UIMessage } from "ai";
 import { EventType } from "@shared/event";
-import { createGateway, isStepCount, Output, ToolLoopAgent } from "ai";
+import { createAgentUIStream, createGateway, isStepCount, Output, ToolLoopAgent } from "ai";
 import { randomUUIDv7 } from "bun";
 import { loadUserSettings } from "@/config/user-settings";
 import {
@@ -69,6 +69,11 @@ export async function classifyMessage(prompt: string): Promise<ClassificationTag
 
 interface RunWorkflowOptions {
   prompt: string;
+  /** Existing UI history loaded by Bun for this chat. */
+  messages?: UIMessage[];
+  chatId?: string;
+  assistantMessageId?: string;
+  onAssistantMessage?: (message: UIMessage) => Promise<void>;
   workflowId?: string;
   abortSignal?: AbortSignal;
   modelId?: GatewayModelId;
@@ -98,6 +103,10 @@ export async function runWorkflow(
     workflowId = randomUUIDv7(),
     modelId = "inclusionai/ling-3.0-flash",
     prompt,
+    messages,
+    chatId,
+    assistantMessageId,
+    onAssistantMessage,
     abortSignal,
     reasoning,
     config,
@@ -110,6 +119,7 @@ export async function runWorkflow(
   const workflowTools = createTools({
     workflowId,
     cwd,
+    abortSignal,
     onToolRejected: () => {
       toolRejected = true;
     },
@@ -177,6 +187,77 @@ export async function runWorkflow(
         });
       },
     });
+
+    if (messages) {
+      if (!chatId) {
+        throw new Error("A chat ID is required when streaming UI messages.");
+      }
+
+      let responseMessage: UIMessage | undefined;
+      let streamError: unknown;
+      let streamAborted = false;
+      let streamFinishReason: string | undefined;
+      const uiStream = await createAgentUIStream({
+        agent,
+        uiMessages: messages,
+        abortSignal,
+        generateMessageId: assistantMessageId
+          ? () => assistantMessageId
+          : undefined,
+        onError: (cause) => {
+          streamError = cause;
+          return errorMessage(cause);
+        },
+        onEnd: async ({ responseMessage: completedMessage, isAborted, finishReason }) => {
+          responseMessage = completedMessage;
+          streamAborted = isAborted;
+          streamFinishReason = finishReason;
+          if (!isAborted && !streamError && !maxStepLimitReached && finishReason !== "error") {
+            await onAssistantMessage?.(completedMessage);
+          }
+        },
+      });
+
+      let sequence = 0;
+      for await (const chunk of uiStream) {
+        await emit({
+          type: EventType.AgentUIChunk,
+          workflowId,
+          chatId,
+          sequence: ++sequence,
+          chunk,
+        });
+      }
+
+      if (streamError) {
+        throw streamError;
+      }
+      if (streamAborted || abortSignal?.aborted || streamFinishReason === "error") {
+        throw new Error("Stream aborted before completion.");
+      }
+      if (maxStepLimitReached) {
+        throw new Error("Hit max step limit!!");
+      }
+
+      const text = responseMessage?.parts
+        .filter(part => part.type === "text")
+        .map(part => part.text)
+        .join("") ?? "";
+      await emit({ type: EventType.ModelCompleted, text, workflowId });
+      await emit({ type: EventType.WorkflowCompleted, output: text, workflowId });
+
+      return {
+        responseMessages: [],
+        text,
+        toolCalls: responseMessage?.parts
+          .filter(part => part.type === "dynamic-tool")
+          .map(part => ({
+            id: part.toolCallId,
+            name: part.toolName,
+            input: (part.input ?? {}) as Record<string, unknown>,
+          })) ?? [],
+      } satisfies ModelTurn;
+    }
 
     const result = await agent.stream({ prompt, abortSignal });
 

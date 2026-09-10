@@ -1,14 +1,10 @@
+import type { UserConfig } from "@shared/user-config";
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
+import { userConfig } from "@shared/user-config";
 import { Updater } from "electrobun";
-import z from "zod";
-
-const userConfig = z.object({
-  vercelApiKey: z.string().default(""),
-});
-type UserConfig = z.infer<typeof userConfig>;
 
 export function getConfigDir(): string {
   const rootDir = homedir();

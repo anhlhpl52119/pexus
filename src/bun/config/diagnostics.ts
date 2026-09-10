@@ -1,6 +1,6 @@
 import { appendFile, chmod, mkdir, stat, truncate } from "node:fs/promises";
 import { join } from "node:path";
-import { getConfigDir } from "./user-settings";
+import { getConfigDir } from "@/runtime/store";
 
 const MAX_LOG_BYTES = 1_000_000;
 const LOG_FILE_NAME = "agent-errors.log";

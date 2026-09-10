@@ -1,7 +1,7 @@
 import type { AgentEvent } from "@shared/event";
-import type { UserSettings } from "@shared/settings";
 import type { UIMessage } from "ai";
 import type { RPCSchema } from "electrobun";
+import type { UserConfig } from "./user-config";
 
 export interface MyWebviewRPCType {
   // functions that execute in the main process
@@ -15,13 +15,13 @@ export interface MyWebviewRPCType {
         params: undefined;
         response: string | null;
       };
-      getSettings: {
-        params: undefined;
-        response: UserSettings;
+      saveUserConfig: {
+        params: UserConfig;
+        response: UserConfig;
       };
-      saveSettings: {
-        params: UserSettings;
-        response: UserSettings;
+      loadUserConfig: {
+        params: undefined;
+        response: UserConfig;
       };
       createChat: {
         params: { chatId: string };

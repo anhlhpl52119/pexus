@@ -2,7 +2,7 @@
 import { defineAsyncComponent, onMounted, ref } from "vue";
 import { electroview } from "@/electroview";
 
-const vercelAiKey = ref("");
+const vercelApiKey = ref("");
 const settingsLoading = ref(true);
 const settingsError = ref<string | null>(null);
 const defaultLayout = defineAsyncComponent(() => import("@/layouts/DefaultLayout.vue"));
@@ -21,8 +21,8 @@ async function loadSettings() {
   settingsLoading.value = true;
   settingsError.value = null;
   try {
-    const settings = await getRpc().request.getSettings();
-    vercelAiKey.value = settings.vercelAiKey;
+    const settings = await getRpc().request.loadUserConfig();
+    vercelApiKey.value = settings.vercelApiKey;
   }
   catch {
     settingsError.value = "Could not load settings.";

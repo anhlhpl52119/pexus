@@ -2,6 +2,7 @@ import type { ElectrobunConfig } from "electrobun";
 
 import path from "node:path";
 
+// ref: https://framework.blackboard.sh/electrobun/apis/cli/build-configuration/
 export default {
   app: {
     name: "Pexus",
@@ -13,6 +14,7 @@ export default {
       entrypoint: "src/bun/index.ts",
       define: {
         __PROJECT_ROOT__: JSON.stringify(import.meta.dir),
+        __APP_NAME__: JSON.stringify("Pexus"),
       },
       plugins: [{
         /** resolve alias start with `@/` and `@share` in `src/bun` */

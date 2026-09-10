@@ -4,6 +4,7 @@ import { registerTelemetry } from "ai";
 import { ApplicationMenu, BrowserWindow, Updater } from "electrobun/bun";
 import { subscribe } from "@/runtime/bus";
 import { rpc } from "@/runtime/rpc";
+import { ensureSchema } from "./runtime/db";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -27,6 +28,7 @@ async function getMainViewUrl(): Promise<string> {
 }
 
 async function main() {
+  await ensureSchema().catch(console.error);
   ApplicationMenu.setApplicationMenu([
     {
       submenu: [

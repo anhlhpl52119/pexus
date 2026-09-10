@@ -8,7 +8,6 @@ export interface ChatHistory {
   id: string;
   messages: UIMessage[];
 }
-
 export interface HistoryStore {
   createChat: (chatId: string) => ChatHistory;
   hasMessage: (chatId: string, messageId: string) => boolean;

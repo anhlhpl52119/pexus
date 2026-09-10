@@ -6,8 +6,6 @@ import process from "node:process";
 import { defaultUserSettings } from "@shared/settings";
 import { Updater } from "electrobun";
 
-declare const __PROJECT_ROOT__: string;
-
 type SettingsFile = Partial<UserSettings> & {
   vercelApiKey?: unknown;
 };

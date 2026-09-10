@@ -3,7 +3,6 @@ import type { GatewayModelId, UIMessage } from "ai";
 import { EventType } from "@shared/event";
 import { createAgentUIStream, createGateway, isStepCount, Output, ToolLoopAgent } from "ai";
 import { randomUUIDv7 } from "bun";
-import { loadUserSettings } from "@/config/user-settings";
 import {
   AGENT_PROMPTS,
   CLASSIFICATION_PROMPT,
@@ -12,6 +11,7 @@ import {
 } from "@/harness/prompts";
 import { createTools } from "@/harness/tools";
 import { emit } from "@/runtime/bus";
+import { loadUserConfig } from "@/runtime/store";
 
 // --- Classification ---
 
@@ -43,12 +43,12 @@ export const AGENT_REGISTRY: Record<ClassificationTag, AgentConfig> = {
 };
 
 export async function classifyMessage(prompt: string): Promise<ClassificationTag> {
-  const { vercelAiKey } = await loadUserSettings();
-  if (!vercelAiKey) {
+  const { vercelApiKey } = await loadUserConfig();
+  if (!vercelApiKey) {
     throw new Error("Missing vercel API key in config");
   }
 
-  const gateway = createGateway({ apiKey: vercelAiKey });
+  const gateway = createGateway({ apiKey: vercelApiKey });
 
   const classifier = new ToolLoopAgent({
     model: gateway("inception/mercury-2.5"),
@@ -133,12 +133,12 @@ export async function runWorkflow(
   let maxStepLimitReached = false;
 
   try {
-    const { vercelAiKey } = await loadUserSettings();
-    if (!vercelAiKey) {
+    const { vercelApiKey } = await loadUserConfig();
+    if (!vercelApiKey) {
       throw new Error("Missing vercel API key in config");
     }
 
-    const gateway = createGateway({ apiKey: vercelAiKey });
+    const gateway = createGateway({ apiKey: vercelApiKey });
     const maxStepStopCondition = isStepCount(maxSteps);
     const agent = new ToolLoopAgent({
       model: gateway(effectiveModelId),

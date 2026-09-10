@@ -206,16 +206,6 @@ function handleSelect(id: string) {
   open.value = false;
 }
 
-const promptSuggestions = [
-  "Summarize the current project structure",
-  "Find the most important TODOs in this codebase",
-  "Explain how the main view works",
-];
-
-function usePromptSuggestion(suggestion: string) {
-  promptInput.textInput.value = suggestion;
-}
-
 const isAwaitingResponse = computed(() => {
   return loading.value && conversation.value.at(-1)?.role === "user";
 });
@@ -269,25 +259,9 @@ onMounted(async () => {
           <div class="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <FolderOpenIcon class="size-6" />
           </div>
-          <h1 class="text-xl font-semibold tracking-tight">
-            What are you building today?
+          <h1 class="text-lg font-semibold tracking-tight">
+            Eureka!
           </h1>
-          <p class="mt-2 max-w-md text-sm text-muted-foreground">
-            Ask the agent to inspect, explain, or change your project. Choose a working directory below when tools need local files.
-          </p>
-          <div class="mt-6 flex max-w-xl flex-wrap justify-center gap-2">
-            <Button
-              v-for="suggestion in promptSuggestions"
-              :key="suggestion"
-              class="h-auto whitespace-normal text-left"
-              variant="outline"
-              size="sm"
-              type="button"
-              @click="usePromptSuggestion(suggestion)"
-            >
-              {{ suggestion }}
-            </Button>
-          </div>
         </div>
 
         <div
@@ -377,7 +351,6 @@ onMounted(async () => {
           <span>Starting the agent…</span>
         </div>
       </ConversationContent>
-
       <ConversationScrollButton />
     </Conversation>
 
@@ -391,6 +364,29 @@ onMounted(async () => {
         {{ streamError }}
       </p>
 
+      <div class="bg-secondary p-2 rounded-t-lg">
+        <Button
+          class="h-8 max-w-fit min-w-0 justify-start gap-1 rounded-full px-3 text-left"
+          variant="outline"
+          type="button"
+          :disabled="directoryPickerOpen"
+          :title="selectedWorkspacePath ?? 'Choose a working directory'"
+          :aria-label="selectedWorkspacePath
+            ? `Working directory: ${selectedWorkspacePath}`
+            : 'Choose a working directory'"
+          @click="openDirectory"
+        >
+          <FolderOpenIcon class="size-4 shrink-0" />
+          <span class="min-w-0 truncate text-xs font-medium">
+            {{ selectedWorkspaceName || "Choose folder" }}
+          </span>
+
+          <div v-if="selectedWorkspace" class="p-1/2 hover:bg-slate-500 rounded-full" @click.stop="clearDirectory">
+            <XIcon class="size-4 cursor-pointer" />
+          </div>
+        </Button>
+      </div>
+
       <PromptInput>
         <PromptInputBody>
           <PromptInputTextarea />
@@ -399,49 +395,6 @@ onMounted(async () => {
         <PromptInputFooter>
           <PromptInputTools class="min-w-0 flex-1 flex-wrap">
             <!-- Workspace Selector -->
-            <div class="flex min-w-0 max-w-48 flex-col">
-              <div class="flex min-w-0 items-center gap-1">
-                <Button
-                  class="h-8 max-w-48 min-w-0 flex-1 justify-start gap-2 rounded-full px-3 text-left"
-                  variant="outline"
-                  type="button"
-                  :disabled="directoryPickerOpen"
-                  :title="selectedWorkspacePath ?? 'Choose a working directory'"
-                  :aria-label="selectedWorkspacePath
-                    ? `Working directory: ${selectedWorkspacePath}`
-                    : 'Choose a working directory'"
-                  @click="openDirectory"
-                >
-                  <LoaderCircleIcon v-if="directoryPickerOpen" class="size-4 shrink-0 animate-spin" />
-                  <FolderOpenIcon v-else class="size-4 shrink-0" />
-                  <span class="min-w-0 truncate text-xs font-medium">
-                    {{ selectedWorkspaceName || "Choose folder" }}
-                  </span>
-                </Button>
-
-                <Button
-                  v-if="selectedWorkspace"
-                  class="shrink-0"
-                  variant="ghost"
-                  size="icon-sm"
-                  type="button"
-                  aria-label="Clear working directory"
-                  title="Clear working directory"
-                  @click="clearDirectory"
-                >
-                  <XIcon class="size-4" />
-                </Button>
-              </div>
-              <p
-                v-if="directoryPickerError"
-                class="mt-1 max-w-64 truncate text-[10px] text-destructive"
-                aria-live="polite"
-                :title="directoryPickerError"
-              >
-                {{ directoryPickerError }}
-              </p>
-            </div>
-
             <ModelSelector v-model:open="open">
               <ModelSelectorTrigger>
                 <Button

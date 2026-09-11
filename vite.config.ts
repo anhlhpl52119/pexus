@@ -10,6 +10,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   root: "src/mainview",
+  base: "./",
   resolve: {
     alias: {
       "@shared": path.resolve(__dirname, "./src/shared"),

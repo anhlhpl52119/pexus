@@ -26,7 +26,7 @@ export function getConfigDir(): string {
 export async function getUserConfigPath(): Promise<string> {
   const channel = await Updater.localInfo.channel();
   return channel === "dev"
-    ? Bun.resolveSync("config.dev.json", __PROJECT_ROOT__)
+    ? resolve(__PROJECT_ROOT__, "config.dev.json")
     : join(getConfigDir(), "config.json");
 }
 

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, FolderOpen, GalleryVerticalEndIcon, HashIcon, MessageCirclePlus, Plus, Settings } from "@lucide/vue";
-
+import { ChevronRight, FolderOpen, HashIcon, MessageCirclePlus, Plus, Settings } from "@lucide/vue";
 import Collapsible from "@/components/ui/collapsible/Collapsible.vue";
 import CollapsibleContent from "@/components/ui/collapsible/CollapsibleContent.vue";
 import CollapsibleTrigger from "@/components/ui/collapsible/CollapsibleTrigger.vue";
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/sidebar";
 import SidebarMenuSub from "@/components/ui/sidebar/SidebarMenuSub.vue";
 import SidebarSeparator from "@/components/ui/sidebar/SidebarSeparator.vue";
+import appIconUrl from "../../../assets/icon.png";
 </script>
 
 <template>
@@ -33,8 +33,8 @@ import SidebarSeparator from "@/components/ui/sidebar/SidebarSeparator.vue";
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" tooltip="sdsd">
-              <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <img src="../../../assets/icon.png" class="size-4">
+              <div class="flex aspect-square size-8 items-center justify-center rounded-lg">
+                <img :src="appIconUrl" alt="Pexus app icon" class="size-full">
               </div>
               <div class="grid flex-1 text-left text-sm leading-tight">
                 <span class="truncate font-semibold">Pexus Era</span>

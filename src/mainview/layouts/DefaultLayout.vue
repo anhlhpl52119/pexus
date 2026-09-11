@@ -16,12 +16,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import SidebarMenuSub from "@/components/ui/sidebar/SidebarMenuSub.vue";
-import SidebarSeparator from "@/components/ui/sidebar/SidebarSeparator.vue";
+
 import appIconUrl from "../../../assets/icon.png";
 </script>
 
@@ -66,8 +66,6 @@ import appIconUrl from "../../../assets/icon.png";
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarSeparator />
-
         <!-- Projects -->
         <SidebarGroup>
           <SidebarGroupLabel>
@@ -107,8 +105,6 @@ import appIconUrl from "../../../assets/icon.png";
             </Collapsible>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        <SidebarSeparator />
 
         <!-- Recents -->
         <SidebarGroup>

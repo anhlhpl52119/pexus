@@ -1,0 +1,3 @@
+@utility text-trim-both {
+  text-box: trim-both cap alphabetic;
+}

@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { GalleryVerticalEndIcon, HashIcon } from "@lucide/vue";
+import { ChevronRight, FolderOpen, GalleryVerticalEndIcon, HashIcon, MessageCirclePlus, Plus, Settings } from "@lucide/vue";
 
+import Collapsible from "@/components/ui/collapsible/Collapsible.vue";
+import CollapsibleContent from "@/components/ui/collapsible/CollapsibleContent.vue";
+import CollapsibleTrigger from "@/components/ui/collapsible/CollapsibleTrigger.vue";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
@@ -17,18 +21,20 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import SidebarMenuSub from "@/components/ui/sidebar/SidebarMenuSub.vue";
+import SidebarSeparator from "@/components/ui/sidebar/SidebarSeparator.vue";
 </script>
 
 <template>
   <SidebarProvider>
-    <!-- side bar -->
-    <Sidebar collapsible="icon">
+    <!-- side bar header -->
+    <Sidebar collapsible="icon" variant="floating">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" tooltip="sdsd">
               <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <GalleryVerticalEndIcon class="size-4" />
+                <img src="../../../assets/icon.png" class="size-4">
               </div>
               <div class="grid flex-1 text-left text-sm leading-tight">
                 <span class="truncate font-semibold">Pexus Era</span>
@@ -38,9 +44,104 @@ import {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
+      <!-- side bar content -->
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Pexusism</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <MessageCirclePlus />
+                  <span class="text-trim-both">New Chat</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <Settings />
+                  <span class="text-trim-both">Config</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <!-- Projects -->
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            Projects
+            <SidebarGroupAction>
+              <Plus /> <span class="sr-only">Add Project</span>
+            </SidebarGroupAction>
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <Collapsible default-open class="group/collapsible">
+              <SidebarGroupLabel as-child>
+                <CollapsibleTrigger class="group/label w-full text-left text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                  <FolderOpen class="mr-1" />
+                  path-to-1st-prj
+                  <ChevronRight class="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuSub>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton>
+                          <span>Conversation 1</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton>
+                          <span>Conversation 2</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </SidebarMenuSub>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <!-- Recents -->
+        <SidebarGroup>
+          <Collapsible default-open class="group/collapsible">
+            <SidebarGroupLabel as-child>
+              <CollapsibleTrigger class="group/label w-full text-left text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                Recents
+                <ChevronRight class="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton>
+                      <span>Conversation 1</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton>
+                      <span>Conversation 2</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
+        <!-- Navigation -->
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>

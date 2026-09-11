@@ -5,6 +5,7 @@
 @import "shadcn-vue/tailwind.css";
 
 @import "@/styles/fonts/font.css";
+@import "@/styles/utility.css";
 
 @custom-variant dark (&:is(.dark *));
 

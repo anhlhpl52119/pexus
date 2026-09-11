@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatStatus, SourceUrlUIPart, ToolUIPart, UIMessage } from "ai";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
-import { Check, CopyIcon, FolderOpenIcon, LoaderCircleIcon, XIcon } from "@lucide/vue";
+import { Check, CopyIcon, FolderOpenIcon, XIcon } from "@lucide/vue";
 import { getToolName, isStaticToolUIPart } from "ai";
 import { multiply, round } from "es-toolkit/compat";
 import { computed, onMounted, ref } from "vue";

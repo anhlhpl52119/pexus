@@ -1,9 +1,8 @@
-import { GalleryVerticalEnd } from "@lucide/vue";
 import { useColorMode } from "@vueuse/core";
 import { createPinia } from "pinia";
-import { createApp, markRaw } from "vue";
-import { createMemoryHistory, createRouter } from "vue-router";
+import { createApp } from "vue";
 import App from "@/App.vue";
+import { setupRouter } from "./routers";
 import "@/electroview";
 import "@/styles/main.css";
 
@@ -12,18 +11,7 @@ useColorMode({
 });
 
 const pinia = createPinia();
-
-const router = createRouter({
-  history: createMemoryHistory(),
-  routes: [
-    { name: "home", path: "/", component: () => import("@/views/index.vue") },
-    { name: "debug", path: "/debug", component: () => import("@/views/debug.vue") },
-    { name: "blank", path: "/blank", component: () => import("@/views/blank.vue"), meta: {
-      layout: false,
-      icon: markRaw(GalleryVerticalEnd),
-    } },
-  ],
-});
+const router = await setupRouter();
 
 createApp(App)
   .use(pinia)

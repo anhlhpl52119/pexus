@@ -37,7 +37,6 @@ const attachments = computed(() => props.parts.filter(p => p.type === "file"));
   </Attachments>
 
   <template v-for="(part, partIdx) in props.parts" :key="partIdx">
-    <!-- text -->
     <MessageContent v-if="part.type === 'text'">
       {{ part.text }}
     </MessageContent>

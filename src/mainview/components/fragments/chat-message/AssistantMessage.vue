@@ -27,16 +27,7 @@ const attachments = computed(() => props.parts.filter(p => p.type === "file"));
     v-if="attachments.length > 0"
     class="mb-2"
     variant="grid"
-  >
-    <Attachment
-      v-for="(attachment, atmIdx) in attachments"
-      :key="atmIdx"
-      :data="{ id: nanoid(), ...attachment }"
-    >
-      <AttachmentPreview />
-      <AttachmentRemove />
-    </Attachment>
-  </Attachments>
+  />
 
   <template v-for="(part, partIdx) in props.parts" :key="partIdx">
     <!-- text -->
@@ -53,5 +44,13 @@ const attachments = computed(() => props.parts.filter(p => p.type === "file"));
       <ReasoningTrigger />
       <ReasoningContent :content="part.text" />
     </Reasoning>
+
+    <Attachment
+      v-else-if="part.type === 'file'"
+      :data="{ id: nanoid(), ...part }"
+    >
+      <AttachmentPreview />
+      <AttachmentRemove />
+    </Attachment>
   </template>
 </template>

@@ -12,7 +12,6 @@ interface Messages {
   metadata?: any;
 }
 
-// const conversation: Messages[] = [];
 const conversation: Messages[] = [
   {
     id: nanoid(),
@@ -48,6 +47,16 @@ const conversation: Messages[] = [
 [electrobun] Server started at http://localhost:50000
 [electrobun] HMR enabled: Using Vite dev server at http://localhost:5173
 [electrobun] 🌐 Bun started!! `,
+      },
+      {
+        type: "text",
+        text: `let's me prepare the images...`,
+      },
+      {
+        type: "file",
+        url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
+        mediaType: "image/jpeg",
+        filename: "palace-of-fine-arts.jpg",
       },
       {
         type: "text",

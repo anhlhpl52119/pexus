@@ -36,7 +36,7 @@
   "explorer.fileNesting.patterns": {
     "tsconfig.json": "tsconfig.*.json",
     "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb, bun.lock",
-    "index.ts": "*.ts",
+    "index.ts": "*.ts, *.vue",
     "eslint.config.js": "eslint.config.js, .prettier*"
   },
   "files.autoSave": "off"

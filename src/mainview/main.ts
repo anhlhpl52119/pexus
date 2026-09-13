@@ -10,10 +10,14 @@ useColorMode({
   modes: { dark: "dark" },
 });
 
-const pinia = createPinia();
-const router = await setupRouter();
+async function main() {
+  const pinia = createPinia();
+  const router = await setupRouter();
 
-createApp(App)
-  .use(pinia)
-  .use(router)
-  .mount("#app");
+  createApp(App)
+    .use(pinia)
+    .use(router)
+    .mount("#app");
+}
+
+main().catch(console.error);

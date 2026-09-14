@@ -4,6 +4,7 @@ import { MessageSquare } from "@lucide/vue";
 import { nanoid } from "nanoid";
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { ChatMessage } from "@/components/fragments/chat-message";
+import { ChatPromptInput } from "@/components/fragments/chat-prompt-input";
 
 interface Messages {
   id: string;
@@ -128,5 +129,8 @@ Which specific composable would you like to learn more about?`,
       </ConversationContent>
       <ConversationScrollButton />
     </Conversation>
+    <div class="sticky bottom-0 z-5 mx-auto w-full max-w-3xl shrink-0 pb-4 bg-background/75 backdrop-blur sm:px-0">
+      <ChatPromptInput />
+    </div>
   </div>
 </template>

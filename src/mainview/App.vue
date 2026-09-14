@@ -5,7 +5,8 @@ import { electroview } from "@/electroview";
 const vercelApiKey = ref("");
 const settingsLoading = ref(true);
 const settingsError = ref<string | null>(null);
-const defaultLayout = defineAsyncComponent(() => import("@/layouts/DefaultLayout.vue"));
+
+const defaultLayout = defineAsyncComponent(() => import("@/layouts/default/DefaultLayout.vue"));
 const adminLayout = defineAsyncComponent(() => import("@/layouts/AdminLayout.vue"));
 
 function getRpc() {

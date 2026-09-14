@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createHistoryStore } from "./history";
 import { getConfigDir } from "./store";
 
-const configDir = getConfigDir();
+const configDir = await getConfigDir();
 mkdirSync(configDir, { recursive: true, mode: 0o700 });
 try {
   chmodSync(configDir, 0o700);

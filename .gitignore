@@ -9,3 +9,4 @@ artifacts/
 config.dev.json
 logs
 .devtools
+.devconfig

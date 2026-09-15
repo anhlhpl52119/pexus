@@ -1,7 +1,8 @@
 import type { UIMessage } from "ai";
+import type { InferSelectModel } from "drizzle-orm";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { asc, eq, max, sql } from "drizzle-orm";
+import { asc, desc, eq, max, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 
 import {
@@ -25,6 +26,7 @@ client.run("PRAGMA foreign_keys = ON");
 
 export const db = drizzle({ client });
 
+export type Conversation = InferSelectModel<typeof conversations>;
 export const conversations = sqliteTable("conversations", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
@@ -37,6 +39,7 @@ export const conversations = sqliteTable("conversations", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+export type Message = InferSelectModel<typeof messages>;
 export const messages = sqliteTable(
   "messages",
   {
@@ -132,6 +135,13 @@ export function retrieveConversationById(id: string) {
   };
 }
 
+export function retrieveConversationList(): Conversation[] {
+  return db.select()
+    .from(conversations)
+    .orderBy(desc(conversations.updatedAt))
+    .all();
+}
+
 export function appendMessagePart(messageId: string, part: UIMessage["parts"][number]) {
   return db
     .update(messages)
@@ -175,13 +185,17 @@ export function appendNewMessage(conversationId: string, message: UIMessage) {
   });
 }
 
-export function appendNewConversation(title: string, workingDir: string | null) {
+export interface NewConversationParams {
+  title: string;
+  workingDir: string | null;
+}
+export function appendNewConversation(params: NewConversationParams) {
   const now = new Date().toISOString();
   return db.insert(conversations)
     .values({
       id: nanoid(),
-      title,
-      workingDir,
+      title: params.title,
+      workingDir: params.workingDir,
       createdAt: now,
       updatedAt: now,
     })

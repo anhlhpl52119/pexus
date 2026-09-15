@@ -3,9 +3,11 @@ import type { UIMessage } from "ai";
 import { validateUIMessages } from "ai";
 import { randomUUIDv7 } from "bun";
 import { BrowserView, Utils } from "electrobun";
+import { nanoid } from "nanoid";
 import { resolveApproval } from "@/harness/tools";
 import { loadUserConfig, saveUserConfig } from "@/stores";
 import { runWorkflow } from "./agent-runner";
+import { appendNewConversation, appendNewMessage, retrieveConversationList } from "./db";
 import {
   appendMessage,
   createChat,
@@ -30,6 +32,26 @@ function messageText(message: UIMessage): string {
     .join("")
     .trim();
 }
+
+function composeNewChat(prompts: string, workingDir: string | null) {
+  try {
+    if (!prompts.length) {
+      throw new Error("prompt can not be empty");
+    }
+    const c = appendNewConversation({ title: nanoid(), workingDir });
+    if (!c.id) {
+      throw new Error("cannot create conversation");
+    }
+    const msg = appendNewMessage(c.id, { id: nanoid(), role: "user", parts: [{ type: "text", text: prompts }] });
+    if (!msg) {
+      throw new Error("cannot append first message");
+    }
+    return { conversationId: c.id };
+  }
+  catch (e) {
+    return { conversationId: "", error: String(e) };
+  }
+};
 
 export const rpc = BrowserView.defineRPC<MyWebviewRPCType>({
   // Native file dialogs are user-driven and may stay open for minutes.
@@ -68,6 +90,8 @@ export const rpc = BrowserView.defineRPC<MyWebviewRPCType>({
       },
       saveUserConfig,
       loadUserConfig,
+      retrieveConversationList,
+      createNewChat: ({ prompts, workingDir }) => composeNewChat(prompts, workingDir),
       createChat: ({ chatId }) => createChat(chatId),
       loadChat: ({ chatId }) => loadChat(chatId),
       startAgent: async ({ chatId, workflowId, message, modelId, cwd }) => {

@@ -1,6 +1,7 @@
 import type { AgentEvent } from "@shared/event";
 import type { UIMessage } from "ai";
 import type { RPCSchema } from "electrobun";
+import type { Conversation } from "../bun/runtime/db";
 import type { UserConfig } from "./user-config";
 
 export interface MyWebviewRPCType {
@@ -18,6 +19,14 @@ export interface MyWebviewRPCType {
       saveUserConfig: {
         params: UserConfig;
         response: UserConfig;
+      };
+      createNewChat: {
+        params: { prompts: string; workingDir: string | null };
+        response: { conversationId: string; error?: string };
+      };
+      retrieveConversationList: {
+        params: undefined;
+        response: Conversation[];
       };
       loadUserConfig: {
         params: undefined;

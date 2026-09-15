@@ -71,3 +71,50 @@ Vue                         Bun
  ▼                           ▼
 tiếp tục                    xử lý
 ```
+
+## Conversation flow
+
+| Concept          | Ý nghĩa                                | Scope                   |
+| ---------------- | -------------------------------------- | ----------------------- |
+| **Conversation** | Toàn bộ phiên hội thoại                | lớn nhất                |
+| **Turn**         | Một vòng user ↔ assistant              | interaction             |
+| **Workflow**     | Quy trình để hoàn thành một goal       | có thể xuyên nhiều turn |
+| **Step**         | Một lần xử lý/tool/LLM trong execution | nhỏ nhất                |
+
+## Conversation flow
+
+```
+CONVERSATION
+"Planning dinner"
+│
+├── TURN 1
+│ User: "Tìm nhà hàng Nhật tối nay"
+│
+│ WORKFLOW: RestaurantBooking
+│ Step 1: search
+│ Step 2: check availability
+│ Step 3: recommend
+│
+│ Assistant: "Có A, B, C. Bạn chọn cái nào?"
+│
+├── TURN 2
+│ User: "B"
+│
+│ WORKFLOW: RestaurantBooking (continue)
+│ Step 4: get booking details
+│
+│ Assistant: "Đặt lúc 7pm nhé?"
+│
+└── TURN 3
+User: "Yes"
+
+    WORKFLOW: RestaurantBooking (continue)
+       Step 5: book
+       Step 6: confirm
+
+    Assistant: "Booked."
+```
+
+Conversation - Message -> workflow_metadata[
+step: type, input, output, err
+]

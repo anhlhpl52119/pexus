@@ -11,7 +11,7 @@ import {
 } from "@/harness/prompts";
 import { createTools } from "@/harness/tools";
 import { emit } from "@/runtime/bus";
-import { loadUserConfig } from "@/runtime/store";
+import { loadUserConfig } from "@/stores";
 
 // --- Classification ---
 

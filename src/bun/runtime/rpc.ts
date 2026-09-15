@@ -4,7 +4,7 @@ import { validateUIMessages } from "ai";
 import { randomUUIDv7 } from "bun";
 import { BrowserView, Utils } from "electrobun";
 import { resolveApproval } from "@/harness/tools";
-import { loadUserConfig, saveUserConfig } from "@/runtime/store";
+import { loadUserConfig, saveUserConfig } from "@/stores";
 import { runWorkflow } from "./agent-runner";
 import {
   appendMessage,

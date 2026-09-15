@@ -1,7 +1,7 @@
 import { chmodSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { getConfigDir } from "@/stores";
 import { createHistoryStore } from "./history";
-import { getConfigDir } from "./store";
 
 const configDir = await getConfigDir();
 mkdirSync(configDir, { recursive: true, mode: 0o700 });

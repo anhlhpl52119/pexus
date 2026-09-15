@@ -1,9 +1,9 @@
 import type { UIMessage } from "ai";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { sql } from "drizzle-orm";
+import { asc, eq, max, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sqlite";
-
+import { cidr } from "drizzle-orm/pg-core/columns/cidr";
 import {
   index,
   integer,
@@ -11,6 +11,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { nanoid } from "nanoid";
 import { getConfigDir } from "@/stores";
 
 const vault = join(await getConfigDir(), "vault.sqlite");
@@ -58,7 +59,7 @@ export const messages = sqliteTable(
       .$type<UIMessage["parts"]>()
       .notNull(),
 
-    error: text("error"),
+    failedReason: text("failed_reason"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
@@ -93,7 +94,7 @@ export async function ensureSchema() {
     role TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'completed',
     parts TEXT NOT NULL,
-    error TEXT,
+    failed_reason TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )
 `);
@@ -107,4 +108,91 @@ export async function ensureSchema() {
   CREATE INDEX IF NOT EXISTS messages_conversation_id_idx
   ON messages(conversation_id)
 `);
+}
+
+export function retrieveConversationById(id: string) {
+  const conversation = db.select()
+    .from(conversations)
+    .where(eq(conversations.id, id))
+    .get();
+  if (!conversation) {
+    return null;
+  }
+
+  const relatedMsg = db
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, id))
+    .orderBy(asc(messages.sequence))
+    .all();
+
+  return {
+    ...conversation,
+    messages: relatedMsg,
+  };
+}
+
+export function appendMessagePart(messageId: string, part: UIMessage["parts"][number]) {
+  return db
+    .update(messages)
+    .set({
+      parts: sql`
+        json_insert(
+          ${messages.parts},
+          '$[#]',
+          json(${JSON.stringify(part)})
+        )
+      `,
+    })
+    .where(eq(messages.id, messageId))
+    .returning()
+    .get();
+}
+
+export function appendNewMessage(conversationId: string, message: UIMessage) {
+  return db.transaction((tx) => {
+    const result = tx
+      .select({
+        maxSequence: max(messages.sequence),
+      })
+      .from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .get();
+
+    const sequence = (result?.maxSequence ?? 0) + 1;
+
+    return tx
+      .insert(messages)
+      .values({
+        id: message.id,
+        conversationId,
+        sequence,
+        role: message.role,
+        parts: message.parts,
+      })
+      .returning()
+      .get();
+  });
+}
+
+export function appendNewConversation(title: string, workingDir: string | null) {
+  const now = new Date().toISOString();
+  return db.insert(conversations)
+    .values({
+      id: nanoid(),
+      title,
+      workingDir,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning()
+    .get();
+}
+
+export function updateMessageStatus(messageId: string, status: "completed" | "failed" | "cancelled", failedReason?: string) {
+  return db.update(messages)
+    .set({ status, failedReason })
+    .where(eq(messages.id, messageId))
+    .returning()
+    .get();
 }

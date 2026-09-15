@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { asc, eq, max, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sqlite";
-import { cidr } from "drizzle-orm/pg-core/columns/cidr";
+
 import {
   index,
   integer,

@@ -1,136 +1,111 @@
 <script setup lang="ts">
 import type { UIMessage } from "ai";
+import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { MessageSquare } from "@lucide/vue";
-import { nanoid } from "nanoid";
+import { watch } from "vue";
+import { useRoute } from "vue-router";
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { ChatMessage } from "@/components/fragments/chat-message";
 import { ChatPromptInput } from "@/components/fragments/chat-prompt-input";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useAIStream } from "@/composables/useAIStream";
 
-interface Messages {
-  id: string;
-  role: "user" | "assistant";
-  parts: UIMessage["parts"];
-  metadata?: any;
+interface NewChatPrompt extends PromptInputMessage {
+  modelId: string;
+  workingDir: string | null;
 }
 
-const conversation: Messages[] = [
-  {
-    id: nanoid(),
-    role: "user",
-    parts: [
-      {
-        type: "text",
-        text: "Please help me analyze these images",
-      },
-      {
-        type: "file",
-        url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
-        mediaType: "image/jpeg",
-        filename: "palace-of-fine-arts.jpg",
-      },
-      {
-        type: "file",
-        url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
-        mediaType: "application/pdf",
-        filename: "vue-compositions-guide.pdf",
-      },
-    ],
+const route = useRoute();
+const {
+  conversation,
+  error: streamError,
+  submit,
+  reset,
+  approvalDialogOpen,
+  pendingApproval,
+  handleApproval,
+} = useAIStream({ createOnFirstSubmit: true });
+
+async function handleSubmit(message: NewChatPrompt) {
+  await submit(message.text, message.modelId, message.workingDir);
+}
+
+watch(
+  () => route.query.new,
+  (newValue, oldValue) => {
+    if (route.name === "chat" && newValue !== oldValue) {
+      void reset();
+    }
   },
-  {
-    id: nanoid(),
-    role: "assistant",
-    parts: [
-      {
-        type: "reasoning",
-        text: `[electrobun] Child process spawned with PID 33159
-[electrobun] [LAUNCHER] Loaded identifier: vueapp.electrobun.dev, name: Pexus-dev, channel: dev
-[electrobun] [LAUNCHER] Loading app code from flat files
-[electrobun] Server started at http://localhost:50000
-[electrobun] HMR enabled: Using Vite dev server at http://localhost:5173
-[electrobun] 🌐 Bun started!! `,
-      },
-      {
-        type: "text",
-        text: `let's me prepare the images...`,
-      },
-      {
-        type: "file",
-        url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
-        mediaType: "image/jpeg",
-        filename: "palace-of-fine-arts.jpg",
-      },
-      {
-        type: "text",
-        text: `The Vue Composition API is a modern way to write components in Vue 3. It replaces the Options API’s data, methods, and computed properties with a single \`setup()\` function.
-
-Here are the most common composables:
-
-- **ref()** — creates reactive primitive values
-- **reactive()** — makes entire objects reactive
-- **computed()** — creates derived reactive values
-- **watch()** — runs side effects on data changes
-- **onMounted()** — lifecycle hook for when a component is mounted
-
-## Most Popular Composables
-
-| Composable | Purpose |
-|-------------|----------|
-| ref | Reactive primitive values |
-| reactive | Reactive objects |
-| computed | Derived reactive values |
-| watch | React to data changes |
-| onMounted | Run code when component mounts |
-| onUnmounted | Cleanup logic when destroyed |
-
-Here's a simple example:
-
-\`\`\`vue
-<script setup>
-import { ref, onMounted } from 'vue'
-
-const count = ref(0)
-
-onMounted(() => {
-  console.log('Component mounted!')
-})
-<\/script>
-
-<template>
-  <button @click="count++">Clicked {{ count }} times</button>
-</template>
-\`\`\`
-
-Which specific composable would you like to learn more about?`,
-      },
-    ],
-  },
-];
+);
 </script>
 
 <template>
   <div class="flex h-full flex-col">
     <Conversation class="relative size-full">
-      <ConversationContent>
-        <!-- Empty -->
+      <ConversationContent class="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
         <ConversationEmptyState
           v-if="conversation.length === 0"
           title="Start a conversation"
-          description="Messages will appear here as the conversation progresses."
+          description="Ask anything to get started."
         >
           <template #icon>
             <MessageSquare class="size-6" />
           </template>
         </ConversationEmptyState>
 
-        <!-- messages -->
-        <div v-for="msg in conversation" :key="msg.id" class="flex flex-col gap-4">
-          <ChatMessage class="flex-col" :msg-id="msg.id" :parts="msg.parts" :role="msg.role" />
+        <div v-for="message in conversation" :key="message.id" class="flex flex-col gap-4">
+          <ChatMessage
+            class="flex-col"
+            :msg-id="message.id"
+            :parts="message.parts"
+            :role="message.role as UIMessage['role']"
+          />
         </div>
       </ConversationContent>
       <ConversationScrollButton />
     </Conversation>
-    <div class="sticky bottom-0 z-5 mx-auto w-full max-w-3xl shrink-0 pb-4 bg-background/75 backdrop-blur sm:px-0">
-      <ChatPromptInput />
+
+    <div class="sticky bottom-0 z-10 mx-auto w-full max-w-3xl shrink-0 border-t bg-background/95 px-4 pb-4 pt-2 backdrop-blur sm:px-6">
+      <p
+        v-if="streamError"
+        class="mb-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        role="alert"
+        aria-live="assertive"
+      >
+        {{ streamError }}
+      </p>
+      <ChatPromptInput
+        :key="String(route.query.new ?? 'new-chat')"
+        @submit="handleSubmit"
+      />
     </div>
+
+    <Dialog v-model:open="approvalDialogOpen">
+      <DialogContent>
+        <DialogTitle>Confirm Destructive Command</DialogTitle>
+        <DialogDescription>
+          This command appears to be destructive. Please confirm before proceeding.
+        </DialogDescription>
+        <div class="rounded-md bg-muted p-4 font-mono text-sm">
+          {{ pendingApproval?.command }}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="handleApproval(false)">
+            Deny
+          </Button>
+          <Button variant="default" @click="handleApproval(true)">
+            Approve
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

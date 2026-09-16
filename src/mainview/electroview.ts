@@ -31,6 +31,17 @@ export const electroview = new Electroview({
   }),
 });
 
+export async function createNewChat(
+  prompts: string,
+  workingDir: string | null,
+): Promise<{ conversationId: string; error?: string }> {
+  const rpc = electroview.rpc;
+  if (!rpc) {
+    throw new Error("ElectroBun RPC is unavailable.");
+  }
+  return rpc.request.createNewChat({ prompts, workingDir });
+}
+
 export async function loadChat(
   chatId: string,
 ): Promise<{ id: string; messages: UIMessage[] }> {

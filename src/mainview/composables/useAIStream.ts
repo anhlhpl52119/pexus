@@ -4,9 +4,18 @@ import { EventType } from "@shared/event";
 import { uuid } from "@shared/utils";
 import { readUIMessageStream } from "ai";
 import { onUnmounted, ref } from "vue";
-import { loadChat, requestApproval, startAgentStream } from "../electroview";
+import { createNewChat, loadChat, requestApproval, startAgentStream } from "../electroview";
 
 const ACTIVE_CHAT_ID_KEY = "pexus.active-chat-id";
+
+function setActiveChatId(chatId: string): void {
+  try {
+    localStorage.setItem(ACTIVE_CHAT_ID_KEY, chatId);
+  }
+  catch {
+    // Persistence is optional when WebView storage is unavailable.
+  }
+}
 
 function getActiveChatId(): string {
   try {
@@ -20,17 +29,17 @@ function getActiveChatId(): string {
   }
 
   const chatId = uuid();
-  try {
-    localStorage.setItem(ACTIVE_CHAT_ID_KEY, chatId);
-  }
-  catch {
-    // Persistence is provided by Bun; this only keeps the selected chat stable.
-  }
+  setActiveChatId(chatId);
   return chatId;
 }
 
-export function useAIStream() {
-  const chatId = getActiveChatId();
+interface UseAIStreamOptions {
+  createOnFirstSubmit?: boolean;
+}
+
+export function useAIStream(options: UseAIStreamOptions = {}) {
+  let chatId = getActiveChatId();
+  let newChatRequested = options.createOnFirstSubmit === true;
   const conversation = ref<UIMessage[]>([]);
   const error = ref<string | null>(null);
   const loading = ref(false);
@@ -40,6 +49,7 @@ export function useAIStream() {
   let activeChunkController: ReadableStreamDefaultController<UIMessageChunk> | undefined;
   let unsubscribe: (() => void) | undefined;
   let submissionId = 0;
+  let resetPromise: Promise<void> | undefined;
 
   function closeChunkStream(): void {
     const controller = activeChunkController;
@@ -93,29 +103,50 @@ export function useAIStream() {
 
   async function submit(prompt: string, modelId: string, cwd: string | null) {
     const normalizedPrompt = prompt.trim();
-    if (!normalizedPrompt) {
+    if (!normalizedPrompt || loading.value || resetPromise) {
       return;
     }
 
-    await initialize();
     const requestId = ++submissionId;
     loading.value = true;
     error.value = null;
 
-    const userMessage: UIMessage = {
-      role: "user",
-      id: uuid(),
-      parts: [{ type: "text", text: normalizedPrompt }],
-    };
-    conversation.value.push(userMessage);
-
-    await disposeActiveStream(true);
-
-    if (requestId !== submissionId) {
-      return;
-    }
-
     try {
+      if (newChatRequested) {
+        const result = await createNewChat(normalizedPrompt, cwd ?? null);
+        if (requestId !== submissionId) {
+          return;
+        }
+        if (result.error || !result.conversationId) {
+          throw new Error(result.error ?? "Could not create the conversation.");
+        }
+
+        chatId = result.conversationId;
+        setActiveChatId(chatId);
+        newChatRequested = false;
+        initializationPromise = Promise.resolve();
+      }
+      else {
+        await initialize();
+      }
+
+      if (requestId !== submissionId) {
+        return;
+      }
+
+      const userMessage: UIMessage = {
+        role: "user",
+        id: uuid(),
+        parts: [{ type: "text", text: normalizedPrompt }],
+      };
+      conversation.value.push(userMessage);
+
+      await disposeActiveStream(true);
+
+      if (requestId !== submissionId) {
+        return;
+      }
+
       const stream = await startAgentStream(chatId, userMessage, modelId, cwd ?? null);
       if (requestId !== submissionId) {
         await stream.cancel().catch(() => {});
@@ -227,6 +258,28 @@ export function useAIStream() {
     }
   }
 
+  async function reset() {
+    ++submissionId;
+    conversation.value = [];
+    error.value = null;
+    loading.value = false;
+    approvalDialogOpen.value = false;
+    pendingApproval.value = null;
+    initializationPromise = undefined;
+    newChatRequested = options.createOnFirstSubmit === true;
+    chatId = getActiveChatId();
+    const pendingReset = disposeActiveStream(true);
+    resetPromise = pendingReset;
+    try {
+      await pendingReset;
+    }
+    finally {
+      if (resetPromise === pendingReset) {
+        resetPromise = undefined;
+      }
+    }
+  }
+
   async function cancel() {
     ++submissionId;
     await disposeActiveStream(true);
@@ -250,6 +303,7 @@ export function useAIStream() {
     chatId,
     conversation,
     initialize,
+    reset,
     error,
     loading,
     submit,

@@ -34,44 +34,53 @@ import {
 import { Button } from "@/components/ui/button";
 import { electroview } from "@/electroview";
 
+type ChatPromptInputMessage = PromptInputMessage & {
+  modelId: string;
+  workingDir: string | null;
+};
+
+const emit = defineEmits<{
+  submit: [message: ChatPromptInputMessage];
+}>();
+
 const SUBMITTING_TIMEOUT = 200;
 const STREAMING_TIMEOUT = 2000;
 
 const models = [
   {
-    id: "gpt-4o",
-    name: "GPT-4o",
-    chef: "OpenAI",
-    chefSlug: "openai",
-    providers: ["openai", "azure"],
+    id: "inclusionai/ling-3.0-flash-fin-free",
+    name: "Ling 3.0 Flash (Free)",
+    chef: "Novita AI",
+    chefSlug: "inclusionai",
+    providers: ["novita-ai"],
   },
   {
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini",
-    chef: "OpenAI",
-    chefSlug: "openai",
-    providers: ["openai", "azure"],
+    id: "poolside/laguna-s-2.1-free",
+    name: "Laguna S 2.1 Free",
+    chef: "Poolside",
+    chefSlug: "poolside",
+    providers: ["poolside"],
   },
   {
-    id: "claude-opus-4-20250514",
-    name: "Claude 4 Opus",
-    chef: "Anthropic",
-    chefSlug: "anthropic",
-    providers: ["anthropic", "azure", "google", "amazon-bedrock"],
+    id: "deepseek/deepseek-v4.1-flash",
+    name: "DeepSeek V4.1 Flash",
+    chef: "Deepseek",
+    chefSlug: "deepseek",
+    providers: ["alibaba-cloud, baseten, boundless, deepInfra, deepSeek, fireworks"],
   },
   {
-    id: "claude-sonnet-4-20250514",
-    name: "Claude 4 Sonnet",
-    chef: "Anthropic",
-    chefSlug: "anthropic",
-    providers: ["anthropic", "azure", "google", "amazon-bedrock"],
+    id: "zai/glm-5.3-flash",
+    name: "GLM 5.3 Flash",
+    chef: "Z.AI",
+    chefSlug: "zai",
+    providers: ["zai", "azure"],
   },
   {
-    id: "gemini-2.0-flash-exp",
-    name: "Gemini 2.0 Flash",
-    chef: "Google",
-    chefSlug: "google",
-    providers: ["google"],
+    id: "inception/mercury-2.5",
+    name: "Mercury 2.5",
+    chef: "Inception",
+    chefSlug: "inception",
+    providers: ["inception"],
   },
 ];
 
@@ -137,16 +146,19 @@ function clearDirectory() {
 }
 
 function handleSubmit(message: PromptInputMessage) {
-  const hasText = !!message.text;
-  const hasAttachments = message.files?.length > 0;
+  const hasText = !!message.text.trim();
 
-  if (!hasText && !hasAttachments) {
+  if (!hasText) {
     return;
   }
 
   status.value = "submitted";
 
-  console.log("Submitting message:", message);
+  emit("submit", {
+    ...message,
+    modelId: modelId.value,
+    workingDir: selectedWorkspace.value,
+  });
 
   setTimeout(() => {
     status.value = "streaming";
@@ -224,7 +236,7 @@ function handleSubmit(message: PromptInputMessage) {
                 <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
 
                 <ModelSelectorGroup
-                  v-for="chef in ['OpenAI', 'Anthropic', 'Google']"
+                  v-for="chef in ['Novita AI', 'Poolside', 'Deepseek', 'Inception', 'Z.AI']"
                   :key="chef"
                   :heading="chef"
                 >

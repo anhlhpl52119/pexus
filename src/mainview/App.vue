@@ -22,7 +22,7 @@ async function loadSettings() {
   settingsLoading.value = true;
   settingsError.value = null;
   try {
-    const settings = await getRpc().request.loadUserConfig();
+    const settings = await getRpc().request.loadJsonConfig();
     vercelApiKey.value = settings.vercelApiKey;
   }
   catch {

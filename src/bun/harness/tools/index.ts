@@ -1,6 +1,6 @@
 import { exec } from "node:child_process";
 import { cwd as getProcessCwd } from "node:process";
-import { EventType } from "@shared/event";
+import { EventType } from "@shared/model";
 import { tool } from "ai";
 import { randomUUIDv7 } from "bun";
 import z from "zod";

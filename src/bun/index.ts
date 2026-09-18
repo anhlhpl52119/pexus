@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@shared/event";
+import type { AgentEvent } from "@shared/model";
 import { DevToolsTelemetry } from "@ai-sdk/devtools";
 import { registerTelemetry } from "ai";
 import { ApplicationMenu, BrowserWindow, Updater } from "electrobun/bun";

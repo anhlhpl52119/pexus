@@ -1,6 +1,6 @@
 import type { UIMessage, UIMessageChunk } from "ai";
 import type { AgentStream } from "../electroview";
-import { EventType } from "@shared/event";
+import { EventType } from "@shared/model";
 import { uuid } from "@shared/utils";
 import { readUIMessageStream } from "ai";
 import { onUnmounted, ref } from "vue";

@@ -1,6 +1,6 @@
 import type { ModelTurn } from "@shared/model";
 import type { GatewayModelId, UIMessage } from "ai";
-import { EventType } from "@shared/event";
+import { EventType } from "@shared/model";
 import { createAgentUIStream, createGateway, isStepCount, Output, ToolLoopAgent } from "ai";
 import { randomUUIDv7 } from "bun";
 import {

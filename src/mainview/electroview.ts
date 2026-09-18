@@ -1,7 +1,7 @@
-import type { AgentEvent } from "@shared/event";
-import type { MyWebviewRPCType } from "@shared/rpc";
+import type { AgentEvent } from "@shared/model";
+import type { AppRPC } from "@shared/rpc";
 import type { UIMessage } from "ai";
-import { EventType } from "@shared/event";
+import { EventType } from "@shared/model";
 import { Electroview } from "electrobun/view";
 
 type AgentEventListener = (event: AgentEvent) => void;
@@ -18,18 +18,14 @@ interface ManagedAgentStream extends AgentStream {
 }
 
 const streams = new Map<string, ManagedAgentStream>();
-
-export const electroview = new Electroview({
-  rpc: Electroview.defineRPC<MyWebviewRPCType>({
-    // Keep this aligned with the Bun handler for user-driven native dialogs.
-    maxRequestTime: 120_000,
-    handlers: {
-      messages: {
-        agentEvent: receiveAgentEvent,
-      },
+export const rpc = Electroview.defineRPC<AppRPC>({
+  handlers: {
+    messages: {
+      agentEvent: receiveAgentEvent,
     },
-  }),
+  },
 });
+export const electroview = new Electroview({ rpc });
 
 export async function createNewChat(
   prompts: string,

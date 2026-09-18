@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@shared/event";
+import type { AgentEvent } from "@shared/model";
 import type { UIMessage } from "ai";
 import { last } from "es-toolkit/compat";
 import { defineStore } from "pinia";

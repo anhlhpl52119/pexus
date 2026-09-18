@@ -1,4 +1,4 @@
-import type { MyWebviewRPCType } from "@shared/rpc";
+import type { AppRPC } from "@shared/rpc";
 import type { UIMessage } from "ai";
 import { validateUIMessages } from "ai";
 import { BrowserView, Utils } from "electrobun";
@@ -42,7 +42,7 @@ function messageText(message: UIMessage): string {
     .join("")
     .trim();
 }
-export const rpc = BrowserView.defineRPC<MyWebviewRPCType>({
+export const rpc = BrowserView.defineRPC<AppRPC>({
   // Native file dialogs are user-driven and may stay open for minutes.
   maxRequestTime: 120_000,
   handlers: {

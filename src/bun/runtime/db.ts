@@ -1,5 +1,4 @@
 import type { UIMessage } from "ai";
-import type { InferSelectModel } from "drizzle-orm";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { asc, desc, eq, max, sql } from "drizzle-orm";
@@ -25,7 +24,6 @@ client.run("PRAGMA foreign_keys = ON");
 
 export const db = drizzle({ client });
 
-export type Conversation = InferSelectModel<typeof conversations>;
 export const conversations = sqliteTable("conversations", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
@@ -38,43 +36,38 @@ export const conversations = sqliteTable("conversations", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export type Message = InferSelectModel<typeof messages>;
-export const messages = sqliteTable(
-  "messages",
-  {
-    id: text("id").primaryKey(),
-    conversationId: text("conversation_id")
-      .notNull()
-      .references(() => conversations.id, { onDelete: "cascade" }),
-    sequence: integer("sequence").notNull(),
-    role: text("role", {
-      enum: ["system", "user", "assistant"],
-    }).notNull(),
-    status: text("status", {
-      enum: ["completed", "failed", "cancelled"],
-    })
-      .notNull()
-      .default("completed"),
-    parts: text("parts", {
-      mode: "json",
-    })
-      .$type<UIMessage["parts"]>()
-      .notNull(),
+export const messages = sqliteTable("messages", {
+  id: text("id").primaryKey(),
+  conversationId: text("conversation_id")
+    .notNull()
+    .references(() => conversations.id, { onDelete: "cascade" }),
+  sequence: integer("sequence").notNull(),
+  role: text("role", {
+    enum: ["system", "user", "assistant"],
+  }).notNull(),
+  status: text("status", {
+    enum: ["completed", "failed", "cancelled"],
+  })
+    .notNull()
+    .default("completed"),
+  parts: text("parts", {
+    mode: "json",
+  })
+    .$type<UIMessage["parts"]>()
+    .notNull(),
 
-    failedReason: text("failed_reason"),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-  },
-  table => [
-    uniqueIndex("messages_conversation_sequence_unique").on(
-      table.conversationId,
-      table.sequence,
-    ),
+  failedReason: text("failed_reason"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+}, table => [
+  uniqueIndex("messages_conversation_sequence_unique").on(
+    table.conversationId,
+    table.sequence,
+  ),
 
-    index("messages_conversation_id_idx").on(table.conversationId),
-  ],
-);
+  index("messages_conversation_id_idx").on(table.conversationId),
+]);
 
 export async function ensureSchema() {
   db.run(sql`
@@ -134,7 +127,7 @@ export function retrieveConversationById(id: string) {
   };
 }
 
-export function retrieveConversationList(): Conversation[] {
+export function retrieveConversationList() {
   return db.select()
     .from(conversations)
     .orderBy(desc(conversations.updatedAt))

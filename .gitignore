@@ -6,7 +6,6 @@ artifacts/
 .DS_Store
 
 # app config (development only)
-config.dev.json
 logs
 .devtools
 .devconfig

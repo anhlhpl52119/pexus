@@ -1,20 +1,11 @@
 import type { MyWebviewRPCType } from "@shared/rpc";
 import type { UIMessage } from "ai";
 import { validateUIMessages } from "ai";
-import { randomUUIDv7 } from "bun";
 import { BrowserView, Utils } from "electrobun";
 import { nanoid } from "nanoid";
 import { resolveApproval } from "@/harness/tools";
 import { loadUserConfig, saveUserConfig } from "@/stores";
-import { runWorkflow } from "./agent-runner";
 import { appendNewConversation, appendNewMessage, retrieveConversationList } from "./db";
-import {
-  appendMessage,
-  createChat,
-  hasMessage,
-  loadChat,
-  updateMessageStatus,
-} from "./history-store";
 
 interface ActiveAgent {
   controller: AbortController;
@@ -24,14 +15,6 @@ interface ActiveAgent {
 
 const activeAgents = new Map<string, ActiveAgent>();
 const activeChats = new Set<string>();
-
-function messageText(message: UIMessage): string {
-  return message.parts
-    .filter((part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text")
-    .map(part => part.text)
-    .join("")
-    .trim();
-}
 
 function composeNewChat(prompts: string, workingDir: string | null) {
   try {
@@ -52,7 +35,13 @@ function composeNewChat(prompts: string, workingDir: string | null) {
     return { conversationId: "", error: String(e) };
   }
 };
-
+function messageText(message: UIMessage): string {
+  return message.parts
+    .filter((part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text")
+    .map(part => part.text)
+    .join("")
+    .trim();
+}
 export const rpc = BrowserView.defineRPC<MyWebviewRPCType>({
   // Native file dialogs are user-driven and may stay open for minutes.
   maxRequestTime: 120_000,
@@ -92,8 +81,6 @@ export const rpc = BrowserView.defineRPC<MyWebviewRPCType>({
       loadUserConfig,
       retrieveConversationList,
       createNewChat: ({ prompts, workingDir }) => composeNewChat(prompts, workingDir),
-      createChat: ({ chatId }) => createChat(chatId),
-      loadChat: ({ chatId }) => loadChat(chatId),
       startAgent: async ({ chatId, workflowId, message, modelId, cwd }) => {
         if (!workflowId.trim()) {
           throw new Error("Workflow ID cannot be empty.");

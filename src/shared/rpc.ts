@@ -32,14 +32,6 @@ export interface MyWebviewRPCType {
         params: undefined;
         response: UserConfig;
       };
-      createChat: {
-        params: { chatId: string };
-        response: { id: string; messages: UIMessage[] };
-      };
-      loadChat: {
-        params: { chatId: string };
-        response: { id: string; messages: UIMessage[] };
-      };
       startAgent: {
         params: {
           chatId: string;

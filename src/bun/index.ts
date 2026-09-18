@@ -29,6 +29,7 @@ async function getMainViewUrl(): Promise<string> {
 
 async function main() {
   await ensureSchema().catch(console.error);
+
   ApplicationMenu.setApplicationMenu([
     {
       submenu: [

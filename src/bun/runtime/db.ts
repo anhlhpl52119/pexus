@@ -13,11 +13,11 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { nanoid } from "nanoid";
-import { getConfigDir } from "@/stores";
+import { enureConfigDir, getConfigDir } from "@/stores";
 
-const vault = join(await getConfigDir(), "vault.sqlite");
-
-export const client = new Database(vault, {
+const chatHistoryDsn = join(await getConfigDir(), "chat-history.sqlite");
+await enureConfigDir();
+export const client = new Database(chatHistoryDsn, {
   create: true,
 });
 

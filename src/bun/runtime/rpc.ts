@@ -1,184 +1,225 @@
-import type { AppRPC } from "@shared/rpc";
-import type { UIMessage } from "ai";
-import { validateUIMessages } from "ai";
-import { BrowserView, Utils } from "electrobun";
-import { nanoid } from "nanoid";
-import { resolveApproval } from "@/harness/tools";
-import { loadUserConfig, saveUserConfig } from "@/stores";
-import { appendNewConversation, appendNewMessage, retrieveConversationList } from "./db";
+// import type { AppRPC } from "@shared/rpc";
+// import type { UIMessage } from "ai";
+// import { validateUIMessages } from "ai";
+// import { BrowserView, Utils } from "electrobun";
+// import { nanoid } from "nanoid";
+// import { resolveApproval } from "@/harness/tools";
+// import { loadUserConfig, saveUserConfig } from "@/stores";
+// import { appendNewConversation, appendNewMessage, retrieveConversationList } from "./db";
 
-interface ActiveAgent {
-  controller: AbortController;
-  chatId: string;
-  assistantMessageId: string;
+// interface ActiveAgent {
+//   controller: AbortController;
+//   chatId: string;
+//   assistantMessageId: string;
+// }
+
+// const activeAgents = new Map<string, ActiveAgent>();
+// const activeChats = new Set<string>();
+
+// function composeNewChat(prompts: string, workingDir: string | null) {
+//   try {
+//     if (!prompts.length) {
+//       throw new Error("prompt can not be empty");
+//     }
+//     const c = appendNewConversation({ title: nanoid(), workingDir });
+//     if (!c.id) {
+//       throw new Error("cannot create conversation");
+//     }
+//     const msg = appendNewMessage(c.id, { id: nanoid(), role: "user", parts: [{ type: "text", text: prompts }] });
+//     if (!msg) {
+//       throw new Error("cannot append first message");
+//     }
+//     return { conversationId: c.id };
+//   }
+//   catch (e) {
+//     return { conversationId: "", error: String(e) };
+//   }
+// };
+// function messageText(message: UIMessage): string {
+//   return message.parts
+//     .filter((part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text")
+//     .map(part => part.text)
+//     .join("")
+//     .trim();
+// }
+// export const rpc = BrowserView.defineRPC<AppRPC>({
+//   // Native file dialogs are user-driven and may stay open for minutes.
+//   maxRequestTime: 120_000,
+//   handlers: {
+//     requests: {
+//       selectWd: async () => {
+//         const paths = await Utils.openFileDialog({
+//           canChooseFiles: false,
+//           canChooseDirectory: true,
+//           allowsMultipleSelection: false,
+//         });
+
+//         const folder = paths?.[0] ?? null;
+
+//         if (folder) {
+//           console.warn("Selected folder:", folder);
+//         }
+
+//         return folder;
+//       },
+//       selectWorkspace: async () => {
+//         const paths = await Utils.openFileDialog({
+//           canChooseFiles: false,
+//           canChooseDirectory: true,
+//           allowsMultipleSelection: false,
+//         });
+
+//         const folder = paths?.[0] ?? null;
+
+//         if (folder) {
+//           console.warn("Selected workspace:", folder);
+//         }
+
+//         return folder;
+//       },
+//       saveUserConfig,
+//       loadUserConfig,
+//       retrieveConversationList,
+//       createNewChat: ({ prompts, workingDir }) => composeNewChat(prompts, workingDir),
+//       startAgent: async ({ chatId, workflowId, message, modelId, cwd }) => {
+//         if (!workflowId.trim()) {
+//           throw new Error("Workflow ID cannot be empty.");
+//         }
+//         if (activeAgents.has(workflowId) || activeChats.has(chatId)) {
+//           return { workflowId, accepted: false };
+//         }
+//         activeChats.add(chatId);
+
+//         try {
+//           const [validatedMessage] = await validateUIMessages({ messages: [message] });
+//           if (!validatedMessage || validatedMessage.role !== "user") {
+//             throw new Error("Only user messages can start an agent.");
+//           }
+
+//           if (hasMessage(chatId, validatedMessage.id)) {
+//             activeChats.delete(chatId);
+//             return { workflowId, accepted: false };
+//           }
+
+//           const normalizedPrompt = messageText(validatedMessage);
+//           if (!normalizedPrompt) {
+//             throw new Error("Prompt cannot be empty.");
+//           }
+
+//           appendMessage(chatId, validatedMessage, "completed");
+//           const contextMessages = loadChat(chatId).messages.filter(
+//             currentMessage => currentMessage.role !== "assistant" || currentMessage.parts.length > 0,
+//           );
+//           const assistantMessageId = randomUUIDv7();
+//           const assistantDraft: UIMessage = {
+//             id: assistantMessageId,
+//             role: "assistant",
+//             parts: [],
+//           };
+//           appendMessage(chatId, assistantDraft, "streaming");
+
+//           const controller = new AbortController();
+//           const activeAgent: ActiveAgent = {
+//             controller,
+//             chatId,
+//             assistantMessageId,
+//           };
+//           activeAgents.set(workflowId, activeAgent);
+
+//           runWorkflow({
+//             prompt: normalizedPrompt,
+//             messages: contextMessages,
+//             chatId,
+//             assistantMessageId,
+//             workflowId,
+//             abortSignal: controller.signal,
+//             modelId,
+//             cwd,
+//             onAssistantMessage: async (completedMessage) => {
+//               appendMessage(chatId, completedMessage, "completed");
+//             },
+//           })
+//             .catch((error) => {
+//               console.error(`Agent ${workflowId} failed:`, error);
+//               updateMessageStatus(
+//                 chatId,
+//                 assistantMessageId,
+//                 controller.signal.aborted ? "cancelled" : "failed",
+//               );
+//             })
+//             .finally(() => {
+//               if (activeAgents.get(workflowId) === activeAgent) {
+//                 activeAgents.delete(workflowId);
+//               }
+//               activeChats.delete(chatId);
+//             });
+
+//           return { workflowId, accepted: true };
+//         }
+//         catch (error) {
+//           activeChats.delete(chatId);
+//           throw error;
+//         }
+//       },
+//       cancelAgent: ({ workflowId }) => {
+//         const activeAgent = activeAgents.get(workflowId);
+//         if (!activeAgent) {
+//           return { cancelled: false };
+//         }
+
+//         activeAgent.controller.abort(new Error("Agent run cancelled"));
+//         return { cancelled: true };
+//       },
+//       requestApproval: ({ toolCallId, approved }) => {
+//         resolveApproval(toolCallId, approved);
+//         return { approved };
+//       },
+//     },
+//     messages: {
+//       "*": (messageName, payload) => {
+//         // handle message from `client` ->  `bun`
+//         console.warn("global message handler", messageName, payload);
+//       },
+//     },
+//   },
+// });
+
+import type { AppRPC } from "@shared/rpc";
+import { BrowserView, Utils } from "electrobun";
+import { z } from "zod";
+
+async function selectWorkspace(): Promise<string | null> {
+  const selectedDirs = await Utils.openFileDialog({
+    canChooseDirectory: true,
+    allowsMultipleSelection: false,
+    canChooseFiles: false,
+  });
+
+  return selectedDirs[0] || null;
 }
 
-const activeAgents = new Map<string, ActiveAgent>();
-const activeChats = new Set<string>();
-
-function composeNewChat(prompts: string, workingDir: string | null) {
-  try {
-    if (!prompts.length) {
-      throw new Error("prompt can not be empty");
-    }
-    const c = appendNewConversation({ title: nanoid(), workingDir });
-    if (!c.id) {
-      throw new Error("cannot create conversation");
-    }
-    const msg = appendNewMessage(c.id, { id: nanoid(), role: "user", parts: [{ type: "text", text: prompts }] });
-    if (!msg) {
-      throw new Error("cannot append first message");
-    }
-    return { conversationId: c.id };
+const jsonConfig = z.object({
+  vercelApiKey: z.string().default(""),
+});
+type JsonConfig = z.infer<typeof jsonConfig>;
+async function loadJsonConfig(): Promise<JsonConfig> {
+  const path = ""; // TODO
+  const file = Bun.file(path);
+  if (await file.exists()) {
+    const cfg = jsonConfig.parse(await file.json());
+    return cfg;
   }
-  catch (e) {
-    return { conversationId: "", error: String(e) };
-  }
-};
-function messageText(message: UIMessage): string {
-  return message.parts
-    .filter((part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text")
-    .map(part => part.text)
-    .join("")
-    .trim();
+  return {} as JsonConfig;
 }
 export const rpc = BrowserView.defineRPC<AppRPC>({
-  // Native file dialogs are user-driven and may stay open for minutes.
-  maxRequestTime: 120_000,
   handlers: {
     requests: {
-      selectWd: async () => {
-        const paths = await Utils.openFileDialog({
-          canChooseFiles: false,
-          canChooseDirectory: true,
-          allowsMultipleSelection: false,
-        });
-
-        const folder = paths?.[0] ?? null;
-
-        if (folder) {
-          console.warn("Selected folder:", folder);
-        }
-
-        return folder;
-      },
-      selectWorkspace: async () => {
-        const paths = await Utils.openFileDialog({
-          canChooseFiles: false,
-          canChooseDirectory: true,
-          allowsMultipleSelection: false,
-        });
-
-        const folder = paths?.[0] ?? null;
-
-        if (folder) {
-          console.warn("Selected workspace:", folder);
-        }
-
-        return folder;
-      },
-      saveUserConfig,
-      loadUserConfig,
-      retrieveConversationList,
-      createNewChat: ({ prompts, workingDir }) => composeNewChat(prompts, workingDir),
-      startAgent: async ({ chatId, workflowId, message, modelId, cwd }) => {
-        if (!workflowId.trim()) {
-          throw new Error("Workflow ID cannot be empty.");
-        }
-        if (activeAgents.has(workflowId) || activeChats.has(chatId)) {
-          return { workflowId, accepted: false };
-        }
-        activeChats.add(chatId);
-
-        try {
-          const [validatedMessage] = await validateUIMessages({ messages: [message] });
-          if (!validatedMessage || validatedMessage.role !== "user") {
-            throw new Error("Only user messages can start an agent.");
-          }
-
-          if (hasMessage(chatId, validatedMessage.id)) {
-            activeChats.delete(chatId);
-            return { workflowId, accepted: false };
-          }
-
-          const normalizedPrompt = messageText(validatedMessage);
-          if (!normalizedPrompt) {
-            throw new Error("Prompt cannot be empty.");
-          }
-
-          appendMessage(chatId, validatedMessage, "completed");
-          const contextMessages = loadChat(chatId).messages.filter(
-            currentMessage => currentMessage.role !== "assistant" || currentMessage.parts.length > 0,
-          );
-          const assistantMessageId = randomUUIDv7();
-          const assistantDraft: UIMessage = {
-            id: assistantMessageId,
-            role: "assistant",
-            parts: [],
-          };
-          appendMessage(chatId, assistantDraft, "streaming");
-
-          const controller = new AbortController();
-          const activeAgent: ActiveAgent = {
-            controller,
-            chatId,
-            assistantMessageId,
-          };
-          activeAgents.set(workflowId, activeAgent);
-
-          runWorkflow({
-            prompt: normalizedPrompt,
-            messages: contextMessages,
-            chatId,
-            assistantMessageId,
-            workflowId,
-            abortSignal: controller.signal,
-            modelId,
-            cwd,
-            onAssistantMessage: async (completedMessage) => {
-              appendMessage(chatId, completedMessage, "completed");
-            },
-          })
-            .catch((error) => {
-              console.error(`Agent ${workflowId} failed:`, error);
-              updateMessageStatus(
-                chatId,
-                assistantMessageId,
-                controller.signal.aborted ? "cancelled" : "failed",
-              );
-            })
-            .finally(() => {
-              if (activeAgents.get(workflowId) === activeAgent) {
-                activeAgents.delete(workflowId);
-              }
-              activeChats.delete(chatId);
-            });
-
-          return { workflowId, accepted: true };
-        }
-        catch (error) {
-          activeChats.delete(chatId);
-          throw error;
-        }
-      },
-      cancelAgent: ({ workflowId }) => {
-        const activeAgent = activeAgents.get(workflowId);
-        if (!activeAgent) {
-          return { cancelled: false };
-        }
-
-        activeAgent.controller.abort(new Error("Agent run cancelled"));
-        return { cancelled: true };
-      },
-      requestApproval: ({ toolCallId, approved }) => {
-        resolveApproval(toolCallId, approved);
-        return { approved };
-      },
+      selectWorkspace,
+      loadJsonConfig,
     },
     messages: {
-      "*": (messageName, payload) => {
-        // handle message from `client` ->  `bun`
-        console.warn("global message handler", messageName, payload);
+      "*": () => {
+        // No browser->bun messages are currently required.
       },
     },
   },

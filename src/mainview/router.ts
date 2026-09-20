@@ -2,8 +2,6 @@ import type { Router } from "vue-router";
 import { GalleryVerticalEnd } from "@lucide/vue";
 import { markRaw } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
-import "@/electroview";
-import "@/styles/main.css";
 
 export async function setupRouter(): Promise<Router> {
   const router = createRouter({

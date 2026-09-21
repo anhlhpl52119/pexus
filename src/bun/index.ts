@@ -1,24 +1,25 @@
 import type { AgentEvent } from "@shared/model";
-import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { DevToolsTelemetry } from "@ai-sdk/devtools";
 import { registerTelemetry } from "ai";
-import { BrowserWindow, Updater, Utils } from "electrobun/bun";
+import { BrowserWindow, Updater } from "electrobun/bun";
 import { rpc } from "@/rpc";
 
 import { subscribe } from "@/runtime/bus";
+import { store } from "@/runtime/store";
 import { database } from "./runtime/db";
 import { setupApplicationMenu } from "./windows/application-menu";
+
 import { setupContextMenu } from "./windows/context-menu";
 
 async function main() {
-  const baseConfigPath = await getConfigDir();
+  await store.setup();
 
   // settings.json
-  await ensureSettingsJSON(baseConfigPath);
+  await ensureSettingsJSON(store.userSettingPath());
 
   // database
-  const chatHistoryDBConnStr = join(baseConfigPath, "chat-histories.sqlite");
+  const chatHistoryDBConnStr = join(store.getConfigDir(), "chat-histories.sqlite");
   database.setup(chatHistoryDBConnStr);
 
   // window
@@ -47,13 +48,12 @@ async function main() {
   console.warn("🌐 Bun started!! ");
 }
 
-async function ensureSettingsJSON(cfgPath: string) {
-  const filePath = join(cfgPath, "settings.json");
-  const file = Bun.file(filePath);
+async function ensureSettingsJSON(path: string) {
+  const file = Bun.file(path);
   if (await file.exists()) {
     return;
   }
-  await Bun.write(filePath, `{}`);
+  await Bun.write(path, `{}`);
 }
 
 // Check if Vite dev server is running for HMR
@@ -63,19 +63,6 @@ async function getMainViewUrl(): Promise<string> {
     return "http://localhost:5173";
   }
   return "views://mainview/index.html";
-}
-
-async function getConfigDir() {
-  const channel = await Updater.localInfo.channel();
-  // development
-  if (channel === "dev") {
-    const devConfigPath = join(__PROJECT_ROOT__, ".devconfig");
-    await mkdir(devConfigPath, { recursive: true });
-    return devConfigPath;
-  }
-
-  // prod
-  return Utils.paths.userData;
 }
 
 main()

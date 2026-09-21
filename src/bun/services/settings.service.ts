@@ -14,3 +14,7 @@ export function saveUserSetting(settings: UserSetting) {
 
   return result.data;
 }
+
+export function loadUserSetting() {
+
+}

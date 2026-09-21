@@ -1,71 +1,26 @@
 import type { AgentEvent } from "@shared/model";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import { DevToolsTelemetry } from "@ai-sdk/devtools";
 import { registerTelemetry } from "ai";
-import { ApplicationMenu, BrowserWindow, Updater } from "electrobun/bun";
+import { BrowserWindow, Updater, Utils } from "electrobun/bun";
+import { rpc } from "@/rpc";
+
 import { subscribe } from "@/runtime/bus";
-import { ensureSchema } from "@/runtime/db";
-import { rpc } from "@/runtime/rpc";
-import { enureConfigDir } from "./stores";
-
-const DEV_SERVER_PORT = 5173;
-const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
-
-// Check if Vite dev server is running for HMR
-async function getMainViewUrl(): Promise<string> {
-  const channel = await Updater.localInfo.channel();
-  if (channel === "dev") {
-    try {
-      await fetch(DEV_SERVER_URL, { method: "HEAD" });
-      console.warn(`HMR enabled: Using Vite dev server at ${DEV_SERVER_URL}`);
-      return DEV_SERVER_URL;
-    }
-    catch {
-      console.warn(
-        "Vite dev server not running. Run 'bun run dev:hmr' for HMR support.",
-      );
-    }
-  }
-  return "views://mainview/index.html";
-}
+import { database } from "./db/database";
+import { setupMenuContext } from "./windows/menu-context";
 
 async function main() {
-  try {
-    await enureConfigDir();
-    await ensureSchema();
-  }
-  catch (error) {
-    Promise.reject(error);
-  }
+  const baseConfigPath = await getConfigDir();
+  // settings.json
+  await ensureSettingsJSON(baseConfigPath);
 
-  ApplicationMenu.setApplicationMenu([
-    {
-      submenu: [
-        {
-          label: "Quit",
-          role: "quit",
-          accelerator: "Command+Q",
-        },
-      ],
-    },
-    {
-      label: "Edit",
-      submenu: [
-        { role: "undo" },
-        { role: "quit" },
-        { role: "redo" },
-        { type: "separator" },
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        { role: "pasteAndMatchStyle" },
-        { role: "delete" },
-        { role: "selectAll" },
-      ],
-    },
-  ]);
+  // db
+  const chatHistoryDBConnStr = join(baseConfigPath, "chat-histories.sqlite");
+  database.setup(chatHistoryDBConnStr);
 
   const bw = new BrowserWindow({
-    title: "Pexus",
+    title: __APP_NAME__,
     url: await getMainViewUrl(),
     rpc,
     frame: {
@@ -76,6 +31,8 @@ async function main() {
     },
   });
 
+  setupMenuContext();
+
   subscribe((event: AgentEvent) => {
     bw.webview.rpc?.send.agentEvent(event);
   });
@@ -84,6 +41,37 @@ async function main() {
   registerTelemetry(DevToolsTelemetry());
 
   console.warn("🌐 Bun started!! ");
+}
+
+async function ensureSettingsJSON(cfgPath: string) {
+  const filePath = join(cfgPath, "settings.json");
+  const file = Bun.file(filePath);
+  if (await file.exists()) {
+    return;
+  }
+  await Bun.write(filePath, `{}`);
+}
+
+// Check if Vite dev server is running for HMR
+async function getMainViewUrl(): Promise<string> {
+  const channel = await Updater.localInfo.channel();
+  if (channel === "dev") {
+    return "http://localhost:5173";
+  }
+  return "views://mainview/index.html";
+}
+
+async function getConfigDir() {
+  const channel = await Updater.localInfo.channel();
+  // development
+  if (channel === "dev") {
+    const devConfigPath = join(__PROJECT_ROOT__, ".devconfig");
+    await mkdir(devConfigPath, { recursive: true });
+    return devConfigPath;
+  }
+
+  // prod
+  return Utils.paths.userData;
 }
 
 main()

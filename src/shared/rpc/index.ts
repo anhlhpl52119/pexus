@@ -1,5 +1,6 @@
 import type { AgentEvent } from "@shared/model";
-import type { RPCSchema } from "electrobun";
+import type { RPCSchema, Utils } from "electrobun";
+import type { UserSetting } from "../../bun/services/settings.service";
 import type { Conversation, ConversationHistories, JsonConfig, StartWorkflowParams, StartWorkflowResponse } from "../model";
 
 export interface AppRPC {
@@ -7,19 +8,20 @@ export interface AppRPC {
   bun: RPCSchema<{
     requests: {
       // file system
-      selectWorkspace: {
-        params: undefined;
-        response: string | null;
+      openSystemExplorer: {
+        params: Parameters<typeof Utils.openFileDialog>[0];
+        response: RPCResult<string[]>;
+      };
+
+      saveSettings: {
+        params: UserSetting;
+        response: RPCResult<UserSetting>;
       };
 
       // user config
       loadJsonConfig: {
         params: undefined;
         response: JsonConfig;
-      };
-      saveJsonConfig: {
-        params: JsonConfig;
-        response: boolean;
       };
 
       // workflow
@@ -49,3 +51,11 @@ export interface AppRPC {
     };
   }>;
 }
+
+export type RPCResult<T> = {
+  ok: true;
+  data: T;
+} | {
+  ok: false;
+  error: string;
+};

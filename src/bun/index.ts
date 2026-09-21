@@ -34,12 +34,12 @@ async function main() {
     },
   });
 
-  setupApplicationMenu();
-  setupContextMenu();
-
   subscribe((event: AgentEvent) => {
     bw.webview.rpc?.send.agentEvent(event);
   });
+
+  setupApplicationMenu();
+  setupContextMenu();
 
   // devtool
   registerTelemetry(DevToolsTelemetry());

@@ -19,6 +19,7 @@ interface ManagedAgentStream extends AgentStream {
 
 const streams = new Map<string, ManagedAgentStream>();
 export const rpc = Electroview.defineRPC<AppRPC>({
+  maxRequestTime: 120_000,
   handlers: {
     messages: {
       agentEvent: receiveAgentEvent,

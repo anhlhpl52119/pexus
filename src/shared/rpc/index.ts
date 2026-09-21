@@ -17,6 +17,10 @@ export interface AppRPC {
         params: UserSetting;
         response: RPCResult<UserSetting>;
       };
+      loadSettings: {
+        params: undefined;
+        response: RPCResult<UserSetting>;
+      };
 
       // user config
       loadJsonConfig: {

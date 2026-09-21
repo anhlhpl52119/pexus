@@ -125,9 +125,15 @@ async function openDirectory() {
     if (!rpc)
       throw new Error("The directory picker is unavailable.");
 
-    const folder = await rpc.request.selectWd();
-    if (folder)
-      selectedWorkspace.value = folder;
+    const result = await rpc.request.openSystemExplorer({
+      allowsMultipleSelection: false,
+      canChooseFiles: false,
+      canChooseDirectory: true,
+      startingFolder: "~/Document",
+    });
+    if (result.ok) {
+      [selectedWorkspace.value] = result.data;
+    }
   }
   catch (error) {
     console.error("Failed to open directory", error);

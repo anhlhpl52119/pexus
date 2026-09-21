@@ -7,18 +7,21 @@ import { BrowserWindow, Updater, Utils } from "electrobun/bun";
 import { rpc } from "@/rpc";
 
 import { subscribe } from "@/runtime/bus";
-import { database } from "./db/database";
-import { setupMenuContext } from "./windows/menu-context";
+import { database } from "./runtime/db";
+import { setupApplicationMenu } from "./windows/application-menu";
+import { setupContextMenu } from "./windows/context-menu";
 
 async function main() {
   const baseConfigPath = await getConfigDir();
+
   // settings.json
   await ensureSettingsJSON(baseConfigPath);
 
-  // db
+  // database
   const chatHistoryDBConnStr = join(baseConfigPath, "chat-histories.sqlite");
   database.setup(chatHistoryDBConnStr);
 
+  // window
   const bw = new BrowserWindow({
     title: __APP_NAME__,
     url: await getMainViewUrl(),
@@ -31,7 +34,8 @@ async function main() {
     },
   });
 
-  setupMenuContext();
+  setupApplicationMenu();
+  setupContextMenu();
 
   subscribe((event: AgentEvent) => {
     bw.webview.rpc?.send.agentEvent(event);

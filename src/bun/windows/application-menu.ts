@@ -1,6 +1,6 @@
 import { ApplicationMenu } from "electrobun";
 
-export function setupMenuContext() {
+export function setupApplicationMenu() {
   ApplicationMenu.setApplicationMenu([
     {
       submenu: [

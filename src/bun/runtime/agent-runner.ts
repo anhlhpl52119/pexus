@@ -10,8 +10,8 @@ import {
   SYSTEM_PROMPTS,
 } from "@/harness/prompts";
 import { createTools } from "@/harness/tools";
+import { loadUserConfig } from "@/runtime";
 import { emit } from "@/runtime/bus";
-import { loadUserConfig } from "@/stores";
 
 // --- Classification ---
 

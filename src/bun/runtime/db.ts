@@ -1,5 +1,4 @@
 import type { UIMessage } from "ai";
-import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { asc, desc, eq, max, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sqlite";
@@ -12,19 +11,37 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { nanoid } from "nanoid";
-import { getConfigDir } from "@/stores";
 
-const chatHistoryDsn = join(await getConfigDir(), "chat-history.sqlite");
-export const client = new Database(chatHistoryDsn, {
-  create: true,
-});
+let instance: ReturnType<typeof drizzle> | null = null;
 
-client.run("PRAGMA journal_mode = WAL");
-client.run("PRAGMA foreign_keys = ON");
+export const database = {
+  setup(connStr: string) {
+    if (instance)
+      return instance;
 
-export const db = drizzle({ client });
+    const client = new Database(connStr, {
+      create: true,
+    });
 
-export const conversations = sqliteTable("conversations", {
+    client.run("PRAGMA journal_mode = WAL");
+    client.run("PRAGMA foreign_keys = ON");
+
+    instance = drizzle({ client });
+    ensureSchema();
+
+    return instance;
+  },
+
+  get() {
+    if (!instance) {
+      throw new Error("Database not initialized");
+    }
+
+    return instance;
+  },
+};
+
+const conversations = sqliteTable("conversations", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   workingDir: text("working_dir"),
@@ -36,7 +53,7 @@ export const conversations = sqliteTable("conversations", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const messages = sqliteTable("messages", {
+const messages = sqliteTable("messages", {
   id: text("id").primaryKey(),
   conversationId: text("conversation_id")
     .notNull()
@@ -69,7 +86,8 @@ export const messages = sqliteTable("messages", {
   index("messages_conversation_id_idx").on(table.conversationId),
 ]);
 
-export async function ensureSchema() {
+function ensureSchema() {
+  const db = database.get();
   db.run(sql`
   CREATE TABLE IF NOT EXISTS conversations (
     id TEXT PRIMARY KEY,
@@ -106,6 +124,7 @@ export async function ensureSchema() {
 }
 
 export function retrieveConversationById(id: string) {
+  const db = database.get();
   const conversation = db.select()
     .from(conversations)
     .where(eq(conversations.id, id))
@@ -128,6 +147,8 @@ export function retrieveConversationById(id: string) {
 }
 
 export function retrieveConversationList() {
+  const db = database.get();
+
   return db.select()
     .from(conversations)
     .orderBy(desc(conversations.updatedAt))
@@ -135,6 +156,8 @@ export function retrieveConversationList() {
 }
 
 export function appendMessagePart(messageId: string, part: UIMessage["parts"][number]) {
+  const db = database.get();
+
   return db
     .update(messages)
     .set({
@@ -152,6 +175,8 @@ export function appendMessagePart(messageId: string, part: UIMessage["parts"][nu
 }
 
 export function appendNewMessage(conversationId: string, message: UIMessage) {
+  const db = database.get();
+
   return db.transaction((tx) => {
     const result = tx
       .select({
@@ -182,6 +207,8 @@ export interface NewConversationParams {
   workingDir: string | null;
 }
 export function appendNewConversation(params: NewConversationParams) {
+  const db = database.get();
+
   const now = new Date().toISOString();
   return db.insert(conversations)
     .values({
@@ -196,6 +223,8 @@ export function appendNewConversation(params: NewConversationParams) {
 }
 
 export function updateMessageStatus(messageId: string, status: "completed" | "failed" | "cancelled", failedReason?: string) {
+  const db = database.get();
+
   return db.update(messages)
     .set({ status, failedReason })
     .where(eq(messages.id, messageId))

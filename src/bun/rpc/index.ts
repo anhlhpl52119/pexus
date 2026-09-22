@@ -3,7 +3,7 @@ import { BrowserView, Utils } from "electrobun";
 import { loadUserSetting, saveUserSetting } from "@/services/settings.service";
 
 export const rpc = BrowserView.defineRPC<AppRPC>({
-  maxRequestTime: 120_000,
+  maxRequestTime: 15_000,
   handlers: {
     requests: {
       openSystemExplorer: payload => runRpcAction(() => Utils.openFileDialog(payload)),

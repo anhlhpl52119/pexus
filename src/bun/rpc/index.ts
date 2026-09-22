@@ -1,14 +1,16 @@
 import type { AppRPC, RPCResult } from "@shared/contracts/rpc";
 import { BrowserView, Utils } from "electrobun";
+import { runAgent } from "@/services/agent.service";
 import { loadUserSetting, saveUserSetting } from "@/services/settings.service";
 
 export const rpc = BrowserView.defineRPC<AppRPC>({
-  maxRequestTime: 15_000,
+  maxRequestTime: 120_000,
   handlers: {
     requests: {
       openSystemExplorer: payload => runRpcAction(() => Utils.openFileDialog(payload)),
       saveSettings: payload => runRpcAction(() => saveUserSetting(payload)),
       loadSettings: () => runRpcAction(() => loadUserSetting()),
+      invokeAgent: payload => runRpcAction(() => runAgent(payload)),
     },
     messages: {
       // No browser->bun messages are currently required.

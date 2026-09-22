@@ -7,7 +7,9 @@ export async function setupRouter(): Promise<Router> {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { name: "home", path: "/", component: () => import("@/views/index.vue") },
+      { name: "home", path: "/", component: () => import("@/views/index.vue"), beforeEnter() {
+        router.push({ name: "chat" });
+      } },
       { name: "chat", path: "/chat", component: () => import("@/views/chat.vue") },
       { name: "debug", path: "/debug", component: () => import("@/views/debug.vue") },
       { name: "blank", path: "/blank", component: () => import("@/views/blank.vue"), meta: { layout: false, icon: markRaw(GalleryVerticalEnd) } },

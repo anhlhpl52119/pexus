@@ -61,7 +61,7 @@ async function executeBash(
   command: string,
   context: {
     workflowId: string;
-    cwd: string;
+    cwd: string | null;
     abortSignal?: AbortSignal;
     onToolRejected?: () => void;
   },

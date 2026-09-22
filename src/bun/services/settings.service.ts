@@ -26,6 +26,13 @@ export async function saveUserSetting(settings: UserSetting) {
 }
 
 export async function loadUserSetting(): Promise<UserSetting> {
-  const settings = await Bun.file(store.userSettingPath()).json();
-  return userSetting.parse(settings);
+  try {
+    const settings = await Bun.file(store.userSettingPath()).json();
+    console.log("hello this is log from bun", settings);
+    return userSetting.parse(settings);
+  }
+  catch (error) {
+    console.error(error);
+    return {} as any;
+  }
 }

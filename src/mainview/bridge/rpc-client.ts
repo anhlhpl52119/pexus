@@ -1,4 +1,4 @@
-import type { AppRPC, OpenSystemExplorerParams } from "@shared/contracts/rpc";
+import type { AppRPC, OpenSystemExplorerParams, RunAgentParams } from "@shared/contracts/rpc";
 import type { UserSetting } from "../../bun/services/settings.service";
 import { Electroview } from "electrobun/view";
 
@@ -6,7 +6,7 @@ let bridge: ReturnType<typeof createRPCBridge> | undefined;
 
 function createRPCBridge() {
   const rpc = Electroview.defineRPC<AppRPC>({
-    maxRequestTime: 15_000,
+    maxRequestTime: 120_000,
     handlers: {
       messages: {
         agentEvent: () => {},
@@ -30,13 +30,16 @@ function getRPCBridge() {
 }
 
 export const rpcClient = {
+  system: {
+    openExplorer: (params: OpenSystemExplorerParams) => getRPCBridge().request.openSystemExplorer(params),
+  },
   settings: {
     load: () => getRPCBridge().request.loadSettings(),
     save: (params: UserSetting) =>
       getRPCBridge().request.saveSettings(params),
   },
 
-  system: {
-    openFileDialog: (params: OpenSystemExplorerParams) => getRPCBridge().request.openSystemExplorer(params),
+  agent: {
+    invoke: (params: RunAgentParams) => getRPCBridge().request.invokeAgent(params),
   },
 };

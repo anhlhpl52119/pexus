@@ -1,5 +1,4 @@
 import type { UIMessage, UIMessageChunk } from "ai";
-import type { AgentStream } from "../electroview";
 import { EventType } from "@shared/contracts/agent-events";
 import { readUIMessageStream } from "ai";
 import { nanoid } from "nanoid";

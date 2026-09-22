@@ -48,8 +48,8 @@ const STREAMING_TIMEOUT = 2000;
 
 const models = [
   {
-    id: "inclusionai/ling-3.0-flash-fin-free",
-    name: "Ling 3.0 Flash (Free)",
+    id: "inclusionai/ling-3.0-flash-fin",
+    name: "Ling 3.0 Flash Fin",
     chef: "Novita AI",
     chefSlug: "inclusionai",
     providers: ["novita-ai"],

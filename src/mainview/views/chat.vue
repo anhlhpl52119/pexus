@@ -2,8 +2,10 @@
 import type { UIMessage } from "ai";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { MessageSquare } from "@lucide/vue";
+import { nanoid } from "nanoid";
 import { watch } from "vue";
 import { useRoute } from "vue-router";
+import { rpcClient } from "@/bridge/rpc-client";
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { ChatMessage } from "@/components/fragments/chat-message";
 import { ChatPromptInput } from "@/components/fragments/chat-prompt-input";
@@ -26,7 +28,7 @@ const route = useRoute();
 const {
   conversation,
   error: streamError,
-  submit,
+  // submit,
   reset,
   approvalDialogOpen,
   pendingApproval,
@@ -34,7 +36,20 @@ const {
 } = useAIStream({ createOnFirstSubmit: true });
 
 async function handleSubmit(message: NewChatPrompt) {
-  await submit(message.text, message.modelId, message.workingDir);
+  const res = await rpcClient.settings.load();
+  if (!res.ok) {
+    console.error(res.error);
+    return;
+  }
+
+  const result = await rpcClient.agent.invoke({
+    apiKey: res.data.vercelApiKey,
+    conversationId: nanoid(),
+    modelId: message.modelId,
+    cwd: message.workingDir,
+    prompt: message.text,
+  });
+  console.log(result);
 }
 
 watch(

@@ -1,5 +1,4 @@
-import type { AppRPC } from "@shared/rpc";
-import type { Utils } from "electrobun";
+import type { AppRPC, OpenSystemExplorerParams } from "@shared/contracts/rpc";
 import type { UserSetting } from "../../bun/services/settings.service";
 import { Electroview } from "electrobun/view";
 
@@ -33,12 +32,11 @@ function getRPCBridge() {
 export const rpcClient = {
   settings: {
     load: () => getRPCBridge().request.loadSettings(),
-    save: (settings: UserSetting) =>
-      getRPCBridge().request.saveSettings(settings),
+    save: (params: UserSetting) =>
+      getRPCBridge().request.saveSettings(params),
   },
 
   system: {
-    openFileDialog: (options: Parameters<typeof Utils.openFileDialog>[0]) =>
-      getRPCBridge().request.openSystemExplorer(options),
+    openFileDialog: (params: OpenSystemExplorerParams) => getRPCBridge().request.openSystemExplorer(params),
   },
 };

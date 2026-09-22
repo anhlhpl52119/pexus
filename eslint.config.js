@@ -8,6 +8,7 @@ export default antfu({
     semi: true,
   },
   rules: {
+    "ts/no-redeclare": "off",
     "no-console": "warn",
     "antfu/no-top-level-await": "off",
     "prefer-regex-literals": "off",

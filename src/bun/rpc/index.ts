@@ -1,4 +1,4 @@
-import type { AppRPC, RPCResult } from "@shared/rpc";
+import type { AppRPC, RPCResult } from "@shared/contracts/rpc";
 import { BrowserView, Utils } from "electrobun";
 import { loadUserSetting, saveUserSetting } from "@/services/settings.service";
 

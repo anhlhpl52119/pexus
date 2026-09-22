@@ -1,6 +1,6 @@
-import type { ModelTurn } from "@shared/model";
+import type { ModelTurn } from "@shared/contracts/agent-events";
 import type { GatewayModelId, UIMessage } from "ai";
-import { EventType } from "@shared/model";
+import { EventType } from "@shared/contracts/agent-events";
 import { createAgentUIStream, createGateway, isStepCount, Output, ToolLoopAgent } from "ai";
 import { randomUUIDv7 } from "bun";
 import {
@@ -10,8 +10,8 @@ import {
   SYSTEM_PROMPTS,
 } from "@/harness/prompts";
 import { createTools } from "@/harness/tools";
-import { loadUserConfig } from "@/runtime";
 import { emit } from "@/runtime/bus";
+import { loadUserSetting } from "@/services/settings.service";
 
 // --- Classification ---
 
@@ -43,7 +43,7 @@ export const AGENT_REGISTRY: Record<ClassificationTag, AgentConfig> = {
 };
 
 export async function classifyMessage(prompt: string): Promise<ClassificationTag> {
-  const { vercelApiKey } = await loadUserConfig();
+  const { vercelApiKey } = await loadUserSetting();
   if (!vercelApiKey) {
     throw new Error("Missing vercel API key in config");
   }
@@ -133,7 +133,7 @@ export async function runWorkflow(
   let maxStepLimitReached = false;
 
   try {
-    const { vercelApiKey } = await loadUserConfig();
+    const { vercelApiKey } = await loadUserSetting();
     if (!vercelApiKey) {
       throw new Error("Missing vercel API key in config");
     }

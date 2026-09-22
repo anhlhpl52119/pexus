@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@shared/model";
+import type { AgentEvent } from "@shared/contracts/agent-events";
 import { join } from "node:path";
 import { DevToolsTelemetry } from "@ai-sdk/devtools";
 import { registerTelemetry } from "ai";
@@ -9,8 +9,6 @@ import { subscribe } from "@/runtime/bus";
 import { store } from "@/runtime/store";
 import { database } from "./runtime/db";
 import { setupApplicationMenu } from "./windows/application-menu";
-
-import { setupContextMenu } from "./windows/context-menu";
 
 async function main() {
   await store.setup();
@@ -40,7 +38,6 @@ async function main() {
   });
 
   setupApplicationMenu();
-  setupContextMenu();
 
   // devtool
   registerTelemetry(DevToolsTelemetry());

@@ -1,8 +1,8 @@
 import type { UIMessage, UIMessageChunk } from "ai";
 import type { AgentStream } from "../electroview";
-import { EventType } from "@shared/model";
-import { uuid } from "@shared/utils";
+import { EventType } from "@shared/contracts/agent-events";
 import { readUIMessageStream } from "ai";
+import { nanoid } from "nanoid";
 import { onUnmounted, ref } from "vue";
 import { createNewChat, loadChat, requestApproval, startAgentStream } from "../electroview";
 
@@ -28,7 +28,7 @@ function getActiveChatId(): string {
     // Fall back to an in-memory ID when WebView storage is unavailable.
   }
 
-  const chatId = uuid();
+  const chatId = nanoid();
   setActiveChatId(chatId);
   return chatId;
 }
@@ -136,7 +136,7 @@ export function useAIStream(options: UseAIStreamOptions = {}) {
 
       const userMessage: UIMessage = {
         role: "user",
-        id: uuid(),
+        id: nanoid(),
         parts: [{ type: "text", text: normalizedPrompt }],
       };
       conversation.value.push(userMessage);

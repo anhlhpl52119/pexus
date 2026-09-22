@@ -1,6 +1,5 @@
-import type { AgentEvent } from "@shared/model";
+import type { AgentEvent } from "@shared/contracts/agent-events";
 import type { UIMessage } from "ai";
-import { last } from "es-toolkit/compat";
 import { defineStore } from "pinia";
 import { reactive } from "vue";
 
@@ -29,8 +28,8 @@ export const useAgentStore = defineStore("agent", () => {
   }
 
   function dispatchMsg(event: AgentEvent) {
-    const workflow = ensureWorkflow(event.workflowId);
-    const lastMsg = last(workflow.messages);
+    // const workflow = ensureWorkflow(event.workflowId);
+    // const lastMsg = last(workflow.messages);
 
     switch (event.type) {
       case "model.delta":

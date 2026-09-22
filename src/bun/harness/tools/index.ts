@@ -1,6 +1,6 @@
 import { exec } from "node:child_process";
 import { cwd as getProcessCwd } from "node:process";
-import { EventType } from "@shared/model";
+import { EventType } from "@shared/contracts/agent-events";
 import { tool } from "ai";
 import { randomUUIDv7 } from "bun";
 import z from "zod";

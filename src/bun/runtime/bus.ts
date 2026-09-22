@@ -1,4 +1,4 @@
-import type { AgentEvent, EventInput } from "@shared/model";
+import type { AgentEvent, EventInput } from "@shared/contracts/agent-events";
 import { createEventBus } from "@shared/event-bus";
 import { randomUUIDv7 } from "bun";
 

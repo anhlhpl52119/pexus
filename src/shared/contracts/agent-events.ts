@@ -89,6 +89,8 @@ export const EventType = {
   Log: "log",
 } as const;
 
+export type EventType = typeof EventType[keyof typeof EventType];
+
 export type EventInput
   = | { type: typeof EventType.WorkflowStarted; workflowId: string; input: string }
     | { type: typeof EventType.WorkflowCompleted; workflowId: string; output: string }

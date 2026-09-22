@@ -1,41 +1,8 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, ref } from "vue";
-import { electroview } from "@/electroview";
-
-const vercelApiKey = ref("");
-const settingsLoading = ref(true);
-const settingsError = ref<string | null>(null);
+import { defineAsyncComponent } from "vue";
 
 const defaultLayout = defineAsyncComponent(() => import("@/layouts/default/DefaultLayout.vue"));
 const adminLayout = defineAsyncComponent(() => import("@/layouts/AdminLayout.vue"));
-
-function getRpc() {
-  const rpc = electroview.rpc;
-  if (!rpc) {
-    throw new Error("ElectroBun RPC is unavailable.");
-  }
-
-  return rpc;
-}
-
-async function loadSettings() {
-  settingsLoading.value = true;
-  settingsError.value = null;
-  try {
-    const settings = await getRpc().request.loadJsonConfig();
-    vercelApiKey.value = settings.vercelApiKey;
-  }
-  catch {
-    settingsError.value = "Could not load settings.";
-  }
-  finally {
-    settingsLoading.value = false;
-  }
-}
-
-onMounted(() => {
-  void loadSettings();
-});
 
 const layouts: Record<string, any> = {
   default: defaultLayout,

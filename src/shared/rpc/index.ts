@@ -22,29 +22,29 @@ export interface AppRPC {
         response: RPCResult<UserSetting>;
       };
 
-      // user config
-      loadJsonConfig: {
-        params: undefined;
-        response: JsonConfig;
-      };
+      // // user config
+      // loadJsonConfig: {
+      //   params: undefined;
+      //   response: JsonConfig;
+      // };
 
-      // workflow
-      retrieveConversationList: {
-        params: undefined;
-        response: Conversation[];
-      };
-      retrieveConversationHistories: {
-        params: ConversationHistories["request"];
-        response: ConversationHistories["response"];
-      };
-      startWorkflow: {
-        params: StartWorkflowParams;
-        response: StartWorkflowResponse;
-      };
-      cancelWorkflow: {
-        params: { conversationId: string };
-        response: { cancelled: boolean };
-      };
+      // // workflow
+      // retrieveConversationList: {
+      //   params: undefined;
+      //   response: Conversation[];
+      // };
+      // retrieveConversationHistories: {
+      //   params: ConversationHistories["request"];
+      //   response: ConversationHistories["response"];
+      // };
+      // startWorkflow: {
+      //   params: StartWorkflowParams;
+      //   response: StartWorkflowResponse;
+      // };
+      // cancelWorkflow: {
+      //   params: { conversationId: string };
+      //   response: { cancelled: boolean };
+      // };
     };
   }>;
 

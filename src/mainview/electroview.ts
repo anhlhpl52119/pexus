@@ -1,181 +1,25 @@
-import type { AgentEvent } from "@shared/model";
 import type { AppRPC } from "@shared/rpc";
-import type { UIMessage } from "ai";
-import { EventType } from "@shared/model";
 import { Electroview } from "electrobun/view";
 
-type AgentEventListener = (event: AgentEvent) => void;
+let electroview: ReturnType<typeof setupElectroview>;
 
-export interface AgentStream {
-  readonly workflowId: string;
-  subscribe: (listener: AgentEventListener) => () => void;
-  cancel: () => Promise<void>;
-  dispose: () => void;
-}
-
-interface ManagedAgentStream extends AgentStream {
-  push: (event: AgentEvent) => void;
-}
-
-const streams = new Map<string, ManagedAgentStream>();
-export const rpc = Electroview.defineRPC<AppRPC>({
-  maxRequestTime: 120_000,
-  handlers: {
-    messages: {
-      agentEvent: receiveAgentEvent,
+export function setupElectroview() {
+  const rpc = Electroview.defineRPC<AppRPC>({
+    maxRequestTime: 120_000,
+    handlers: {
+      messages: {
+        agentEvent: () => {},
+      },
     },
-  },
-});
-export const electroview = new Electroview({ rpc });
-
-export async function createNewChat(
-  prompts: string,
-  workingDir: string | null,
-): Promise<{ conversationId: string; error?: string }> {
-  const rpc = electroview.rpc;
-  if (!rpc) {
-    throw new Error("ElectroBun RPC is unavailable.");
-  }
-  return rpc.request.createNewChat({ prompts, workingDir });
+  });
+  return new Electroview({ rpc });
 }
 
-export async function loadChat(
-  chatId: string,
-): Promise<{ id: string; messages: UIMessage[] }> {
-  const rpc = electroview.rpc;
-  if (!rpc) {
-    throw new Error("ElectroBun RPC is unavailable.");
+function getElectroView() {
+  if (electroview?.rpc?.request) {
+    return electroview;
   }
-  return rpc.request.loadChat({ chatId });
+  return setupElectroview();
 }
 
-export async function requestApproval(
-  toolCallId: string,
-  approved: boolean,
-): Promise<{ approved: boolean }> {
-  const rpc = electroview.rpc;
-  if (!rpc) {
-    throw new Error("ElectroBun RPC is unavailable.");
-  }
-  return rpc.request.requestApproval({ toolCallId, approved });
-}
-
-function isTerminalEvent(event: AgentEvent): boolean {
-  return (
-    event.type === EventType.WorkflowCompleted
-    || event.type === EventType.WorkflowFailed
-    || event.type === EventType.WorkflowCancelled
-  );
-}
-
-function createAgentStream(workflowId: string): ManagedAgentStream {
-  const listeners = new Set<AgentEventListener>();
-  let bufferedEvents: AgentEvent[] = [];
-  let disposed = false;
-
-  const stream: ManagedAgentStream = {
-    workflowId,
-    subscribe(listener) {
-      if (disposed) {
-        return () => {};
-      }
-
-      listeners.add(listener);
-      for (const event of bufferedEvents) {
-        listener(event);
-      }
-      bufferedEvents = [];
-
-      return () => listeners.delete(listener);
-    },
-    async cancel() {
-      const rpc = electroview.rpc;
-      if (!rpc) {
-        throw new Error("ElectroBun RPC is unavailable.");
-      }
-
-      await rpc.request.cancelAgent({ workflowId });
-    },
-    dispose() {
-      if (disposed) {
-        return;
-      }
-
-      disposed = true;
-      streams.delete(workflowId);
-      listeners.clear();
-      bufferedEvents = [];
-    },
-    push(event) {
-      if (disposed) {
-        return;
-      }
-
-      if (listeners.size === 0) {
-        bufferedEvents.push(event);
-        return;
-      }
-
-      for (const listener of listeners) {
-        try {
-          listener(event);
-        }
-        catch (error) {
-          console.error("Agent stream listener failed:", error);
-        }
-      }
-    },
-  };
-
-  return stream;
-}
-
-function receiveAgentEvent(event: AgentEvent): void {
-  if (!event.workflowId) {
-    return;
-  }
-
-  const stream = streams.get(event.workflowId);
-  if (!stream) {
-    return;
-  }
-
-  stream.push(event);
-  if (isTerminalEvent(event)) {
-    streams.delete(event.workflowId);
-  }
-}
-
-export async function startAgentStream(
-  chatId: string,
-  message: UIMessage,
-  modelId: string,
-  cwd: string | null,
-): Promise<AgentStream> {
-  const rpc = electroview.rpc;
-  if (!rpc) {
-    throw new Error("ElectroBun RPC is unavailable.");
-  }
-
-  const workflowId = crypto.randomUUID();
-  const stream = createAgentStream(workflowId);
-  streams.set(workflowId, stream);
-  try {
-    const result = await rpc.request.startAgent({
-      chatId,
-      workflowId,
-      message,
-      modelId,
-      cwd,
-    });
-    if (!result.accepted) {
-      throw new Error(`Agent workflow ${workflowId} was not accepted.`);
-    }
-
-    return stream;
-  }
-  catch (error) {
-    stream.dispose();
-    throw error;
-  }
-}
+export const rpcRequest = getElectroView();

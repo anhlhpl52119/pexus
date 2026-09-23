@@ -92,26 +92,26 @@ export const EventType = {
 export type EventType = typeof EventType[keyof typeof EventType];
 
 export type EventInput
-  = | { type: typeof EventType.WorkflowStarted; workflowId: string; input: string }
-    | { type: typeof EventType.WorkflowCompleted; workflowId: string; output: string }
-    | { type: typeof EventType.WorkflowFailed; workflowId: string; error: string }
-    | { type: typeof EventType.WorkflowCancelled; workflowId: string; text: string }
-    | { type: typeof EventType.ModelDelta; workflowId: string; text: string }
-    | { type: typeof EventType.ModelCompleted; workflowId: string; text: string }
-    | { type: typeof EventType.AgentUIChunk; workflowId: string; chatId: string; sequence: number; chunk: UIMessageChunk }
-    | { type: typeof EventType.ReasoningDelta; workflowId: string; text: string }
-    | { type: typeof EventType.ModelReasoningCompleted; workflowId: string; text: string }
-    | { type: typeof EventType.ToolRequested; workflowId: string; toolCallId: string; name: string; args: unknown }
-    | { type: typeof EventType.ToolCompleted; workflowId: string; toolCallId: string; name: string; result: unknown }
-    | { type: typeof EventType.ToolFailed; workflowId: string; toolCallId: string; error: string }
-    | { type: typeof EventType.MemoryCompacted; workflowId: string; summarizedTurns: number; contextTokens: number; summary: string }
-    | { type: typeof EventType.AgentHandoff; workflowId: string; from: string; to: string; reason: string }
-    | { type: typeof EventType.PlanCreated; workflowId: string; steps: { id: string; agent: string; objective: string }[] }
-    | { type: typeof EventType.SubagentStarted; workflowId: string; stepId: string; agent: string; objective: string }
-    | { type: typeof EventType.SubagentCompleted; workflowId: string; stepId: string; agent: string; findings: string }
-    | { type: typeof EventType.SubagentFailed; workflowId: string; stepId: string; agent: string; error: string }
-    | { type: typeof EventType.ApprovalRequested; workflowId: string; toolCallId: string; action: string; args: unknown }
-    | { type: typeof EventType.ApprovalResolved; workflowId: string; toolCallId: string; approved: boolean };
+  = | { type: typeof EventType.WorkflowStarted; workflowId: string; conversationId: string; input: string }
+    | { type: typeof EventType.WorkflowCompleted; workflowId: string; conversationId: string; output: string }
+    | { type: typeof EventType.WorkflowFailed; workflowId: string; conversationId: string; error: string }
+    | { type: typeof EventType.WorkflowCancelled; workflowId: string; conversationId: string; text: string }
+    | { type: typeof EventType.ModelDelta; workflowId: string; conversationId: string; text: string }
+    | { type: typeof EventType.ModelCompleted; workflowId: string; conversationId: string; text: string }
+    | { type: typeof EventType.AgentUIChunk; workflowId: string; conversationId: string; chatId: string; sequence: number; chunk: UIMessageChunk }
+    | { type: typeof EventType.ReasoningDelta; workflowId: string; conversationId: string; text: string }
+    | { type: typeof EventType.ModelReasoningCompleted; workflowId: string; conversationId: string; text: string }
+    | { type: typeof EventType.ToolRequested; workflowId: string; conversationId: string; toolCallId: string; name: string; args: unknown }
+    | { type: typeof EventType.ToolCompleted; workflowId: string; conversationId: string; toolCallId: string; name: string; result: unknown }
+    | { type: typeof EventType.ToolFailed; workflowId: string; conversationId: string; toolCallId: string; error: string }
+    | { type: typeof EventType.MemoryCompacted; workflowId: string; conversationId: string; summarizedTurns: number; contextTokens: number; summary: string }
+    | { type: typeof EventType.AgentHandoff; workflowId: string; conversationId: string; from: string; to: string; reason: string }
+    | { type: typeof EventType.PlanCreated; workflowId: string; conversationId: string; steps: { id: string; agent: string; objective: string }[] }
+    | { type: typeof EventType.SubagentStarted; workflowId: string; conversationId: string; stepId: string; agent: string; objective: string }
+    | { type: typeof EventType.SubagentCompleted; workflowId: string; conversationId: string; stepId: string; agent: string; findings: string }
+    | { type: typeof EventType.SubagentFailed; workflowId: string; conversationId: string; stepId: string; agent: string; error: string }
+    | { type: typeof EventType.ApprovalRequested; workflowId: string; conversationId: string; toolCallId: string; action: string; args: unknown }
+    | { type: typeof EventType.ApprovalResolved; workflowId: string; conversationId: string; toolCallId: string; approved: boolean };
 
 // The harness stamps every event with an id + timestamp when it emits.
 export type AgentEvent = EventInput & { id: string; ts: number };

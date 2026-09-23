@@ -18,11 +18,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAIStream } from "@/composables/useAIStream";
+import { useChatStore } from "@/stores/chatStore";
 
 interface NewChatPrompt extends PromptInputMessage {
   modelId: string;
   workingDir: string | null;
 }
+
+const chatStore = useChatStore();
 
 const route = useRoute();
 const {
@@ -36,20 +39,21 @@ const {
 } = useAIStream({ createOnFirstSubmit: true });
 
 async function handleSubmit(message: NewChatPrompt) {
-  const res = await rpcClient.settings.load();
-  if (!res.ok) {
-    console.error(res.error);
-    return;
-  }
+  await chatStore.submit({ conversationId: null, cwd: null, prompt: message.text });
+  // const res = await rpcClient.settings.load();
+  // if (!res.ok) {
+  //   console.error(res.error);
+  //   return;
+  // }
 
-  const result = await rpcClient.agent.invoke({
-    apiKey: res.data.vercelApiKey,
-    conversationId: nanoid(),
-    modelId: message.modelId,
-    cwd: message.workingDir,
-    prompt: message.text,
-  });
-  console.log(result);
+  // const result = await rpcClient.agent.invoke({
+  //   apiKey: res.data.vercelApiKey,
+  //   conversationId: nanoid(),
+  //   modelId: message.modelId,
+  //   cwd: message.workingDir,
+  //   prompt: message.text,
+  // });
+  // console.log(result);
 }
 
 watch(
@@ -75,7 +79,7 @@ watch(
             <MessageSquare class="size-6" />
           </template>
         </ConversationEmptyState>
-
+        <pre>{{ chatStore.tempRes }}</pre>
         <div v-for="message in conversation" :key="message.id" class="flex flex-col gap-4">
           <ChatMessage
             class="flex-col"

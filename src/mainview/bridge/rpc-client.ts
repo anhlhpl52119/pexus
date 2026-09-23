@@ -1,3 +1,4 @@
+import type { EventInput } from "@shared/contracts/agent-events";
 import type { AppRPC, OpenSystemExplorerParams, RunAgentParams } from "@shared/contracts/rpc";
 import type { UserSetting } from "../../bun/services/settings.service";
 import { Electroview } from "electrobun/view";

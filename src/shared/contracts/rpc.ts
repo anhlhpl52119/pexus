@@ -1,5 +1,4 @@
 import type { AgentEvent } from "@shared/contracts/agent-events";
-import type { StreamTextResult } from "ai";
 import type { RPCSchema, Utils } from "electrobun";
 import type { UserSetting } from "../../bun/services/settings.service";
 
@@ -23,7 +22,7 @@ export interface AppRPC {
       };
       invokeAgent: {
         params: RunAgentParams;
-        response: RPCResult<string>;
+        response: RPCResult<RunAgentResponse>;
       };
     };
   }>;
@@ -50,7 +49,13 @@ export interface RunAgentParams {
   modelId: string;
   prompt: string;
   cwd: string | null;
-  conversationId: string;
-  apiKey: string;
+  conversationId: string | null;
   abortSignal?: AbortSignal;
+  workflowId: string;
+}
+
+export interface RunAgentResponse {
+  conversationId: string;
+  workflowId: string;
+  conversationTitle: string;
 }
